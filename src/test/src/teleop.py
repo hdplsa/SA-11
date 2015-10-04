@@ -24,12 +24,20 @@ class teleop:
 
 		# Ideia tirada de https://github.com/ros-teleop/teleop_twist_keyboard/blob/master/teleop_twist_keyboard.py
 		twist = Twist()
-		rospy.loginfo(data.buttons[6])
-		twist.linear.x = data.buttons[5] - data.buttons[7]; twist.linear.y = data.buttons[4] - data.buttons[6]; twist.linear.z = 0
-		twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
-		if not rospy.is_shutdown():
-			self.pub.publish(twist)
-
+		try:
+			twist.linear.x = data.buttons[5] - data.buttons[7]; twist.linear.y = data.buttons[4] - data.buttons[6]; twist.linear.z = 0
+			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
+			if not rospy.is_shutdown():
+				self.pub.publish(twist)
+		except:
+			print e
+		finally:
+			# Significa que houve um erro qualquer a obter os dados do comando
+			twist.linear.x = 0; twist.linear.y = 0; twist.linear.z = 0
+			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
+			if not rospy.is_shutdown():
+				self.pub.publish(twist)
+		
 
 def teleop_ps3():
 
