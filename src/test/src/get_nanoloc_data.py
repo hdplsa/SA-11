@@ -22,7 +22,7 @@ while not rospy_is_shutdown():
 	data = data.split(',')
 
 	point = Point();
-	point.x = data[2]; point.y = data[3]; point.z = 0;
+	point.x = float(data[2]); point.y = float(data[3]); point.z = 0;
 
 	pub.publish(point);
 
