@@ -9,9 +9,9 @@
 # modified environment variables
 export CMAKE_PREFIX_PATH="/home/ubuntu/Documents/SA-11/src/test/devel:$CMAKE_PREFIX_PATH"
 export CPATH="/home/ubuntu/Documents/SA-11/src/test/devel/include:$CPATH"
-export LD_LIBRARY_PATH="/home/ubuntu/Documents/SA-11/src/test/devel/lib:/home/ubuntu/Documents/SA-11/src/test/devel/lib/x86_64-linux-gnu:/opt/ros/indigo/lib/x86_64-linux-gnu:/opt/ros/indigo/lib"
+export LD_LIBRARY_PATH="/home/ubuntu/Documents/SA-11/src/test/devel/lib:/home/ubuntu/Documents/SA-11/src/test/devel/lib/x86_64-linux-gnu:/home/ubuntu/catkin_ws/devel/lib/x86_64-linux-gnu:/opt/ros/indigo/lib/x86_64-linux-gnu:/home/ubuntu/catkin_ws/devel/lib:/opt/ros/indigo/lib"
 export PATH="/home/ubuntu/Documents/SA-11/src/test/devel/bin:$PATH"
-export PKG_CONFIG_PATH="/home/ubuntu/Documents/SA-11/src/test/devel/lib/pkgconfig:/home/ubuntu/Documents/SA-11/src/test/devel/lib/x86_64-linux-gnu/pkgconfig:/opt/ros/indigo/lib/x86_64-linux-gnu/pkgconfig:/opt/ros/indigo/lib/pkgconfig"
+export PKG_CONFIG_PATH="/home/ubuntu/Documents/SA-11/src/test/devel/lib/pkgconfig:/home/ubuntu/Documents/SA-11/src/test/devel/lib/x86_64-linux-gnu/pkgconfig:/home/ubuntu/catkin_ws/devel/lib/x86_64-linux-gnu/pkgconfig:/opt/ros/indigo/lib/x86_64-linux-gnu/pkgconfig:/home/ubuntu/catkin_ws/devel/lib/pkgconfig:/opt/ros/indigo/lib/pkgconfig"
 export PYTHONPATH="/home/ubuntu/Documents/SA-11/src/test/devel/lib/python2.7/dist-packages:$PYTHONPATH"
-export ROSLISP_PACKAGE_DIRECTORIES="/home/ubuntu/Documents/SA-11/src/test/devel/share/common-lisp"
+export ROSLISP_PACKAGE_DIRECTORIES="/home/ubuntu/Documents/SA-11/src/test/devel/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
 export ROS_PACKAGE_PATH="/home/ubuntu/Documents/SA-11/src/test:$ROS_PACKAGE_PATH"
