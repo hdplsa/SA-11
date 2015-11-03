@@ -3,11 +3,46 @@
 import rospy
 from std_msgs.msg import String
 
+# Constants
+# Number of failed matches before position reset
+MATCH_THRESHOLD = 10
+
+# State Variables
+# Predicted State
 predicted_position     = 0
 predicted_position_var = 0
 
+# Current State
 current_position     = 0
 current_position_var = 0
+
+# Internal variables
+# Odometry corrective offset
+odometry_offset = 0
+# Number of times matching has failed
+matching_fails  = 0
+
+def ekf_update( position, variance ):
+
+    if ekf_match(position, variance):
+        # Match sucessfull, update position
+        # TODO: EKF Update step
+        pass
+
+    elif matching_fails > MATCH_THRESHOLD:
+        # Initiate absolute Positioning
+        ekf_absolute_positioning(position, variance)
+
+    elif matching_fails < MATCH_THRESHOLD:
+        # Increment match fail counter and ignore message
+        matching_fails++
+        return
+
+    predicted_position     = current_position
+    predicted_position_var = current_position_var
+    matching_fails = 0
+
+    return
 
 def ekf_match( position, variance ):
     #TODO: Write matching criterion
@@ -16,37 +51,25 @@ def ekf_match( position, variance ):
     else:
         return False
 
-def ekf_update( position, variance ):
-    rospy.loginfo("Updating..")
+def ekf_absolute_positioning(position, variance):
+    current_position     = position
+    current_position_var = variance
 
-    if ekf_match(position, variance):
-        # Update position
-        # TODO: EKF Update step
-        rospy.loginfo("Update position")
-    else:
-        # Absolute Positioning
-        current_position     = position
-        current_position_var = variance
+    odometry_offset = position - predicted_position
 
-    predicted_position     = current_position
-    predicted_position_var = current_position_var
+def ekf_predict( position, variance ):
+    predicted_position = position + odometry_offset
 
-def ekf_predict( velocity, variance ):
-    rospy.loginfo("Predicting..")
-
-    #TODO: Figure out how to step the prediction
-    deltaT = 1
-    predicted_position += velocity * deltaT
     #TODO: Expression for variance
 
 def odometry_callback( data ):
     rospy.loginfo("Update: " + data.data)
 
-    #TODO: Figure out how to get the velocity
-    velocity = 1
+    #TODO: Extract position and variance out of odometry data
+    position = 1
     variance = 1
 
-    ekf_predict(velocity, variance)
+    ekf_predict(position, variance)
 
 def sensor_callback( data ):
     rospy.loginfo("Predict: " + data.data)
@@ -63,7 +86,7 @@ def publish_position():
 
     while not rospy.is_shutdown():
         #TODO: Publish position in right format
-        pub_str = "current_position: %s" % rospy.get_time()
+        pub_str = "current_position: %s" % current_position
         pub.publish(pub_str)
 
         rospy.loginfo(pub_str)
