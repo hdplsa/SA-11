@@ -1,2 +1,2 @@
-rosaria:test
--DCATKIN_DEVEL_PREFIX=/home/hdplsa/catkin_ws/devel -DCMAKE_INSTALL_PREFIX=/home/hdplsa/catkin_ws/install -G Unix Makefiles
+ekf_node:rosaria:test
+-DCATKIN_DEVEL_PREFIX=/home/ubuntu/Documents/SA-11/devel -DCMAKE_INSTALL_PREFIX=/home/ubuntu/Documents/SA-11/install -G Unix Makefiles
