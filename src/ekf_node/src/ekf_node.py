@@ -3,6 +3,9 @@
 import rospy
 from std_msgs.msg import String
 
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance
+
 # Constants
 # Number of failed matches before position reset
 MATCH_THRESHOLD = 10
@@ -22,16 +25,21 @@ odometry_offset = 0
 # Number of times matching has failed
 matching_fails  = 0
 
-def ekf_update( position, variance ):
+def ekf_branch( sensor_data ):
+    """ Branches between absolute positioning and update step.
+        If match on sensor position and predicted position is
+        succesfull the update step is executed.
+        On the other side if the match is unsucessfull the
+        absolute positioning is executed.
+    """
 
-    if ekf_match(position, variance):
+    if ekf_match(sensor_data):
         # Match sucessfull, update position
-        # TODO: EKF Update step
-        pass
+        ekf_update(sensor_data)
 
     elif matching_fails > MATCH_THRESHOLD:
         # Initiate absolute Positioning
-        ekf_absolute_positioning(position, variance)
+        ekf_absolute_positioning(sensor_data)
 
     elif matching_fails < MATCH_THRESHOLD:
         # Increment match fail counter and ignore message
@@ -42,54 +50,92 @@ def ekf_update( position, variance ):
     predicted_position_var = current_position_var
     matching_fails = 0
 
-    return
+def ekf_match( sensor_data ):
+    """ Matches current predicted position and the sensor position
+        information.
+        Returns true if the predicted position and sensor position
+        overlap.
+    """
 
-def ekf_match( position, variance ):
     #TODO: Write matching criterion
-    if position == predicted_position:
+    if sensor_data.pose.position == predicted_position:
         return True
     else:
         return False
 
-def ekf_absolute_positioning(position, variance):
-    current_position     = position
-    current_position_var = variance
+def ekf_update( sensor_data ):
+    """ Executes the update step on the current position, fusing the
+        predicted position with the position information of the other
+        sensors.
+    """
 
-    odometry_offset = position - predicted_position
+    pass
 
-def ekf_predict( position, variance ):
-    predicted_position = position + odometry_offset
+def ekf_absolute_positioning(sensor_data):
+    """ Absolute positioing routine.
+        Overwrites current position with the position information
+        of the sensor.
+    """
 
+    current_position     = sensor_data.pose.position
+    current_position_var = sensor_data.covariance
+
+    odometry_offset = sensor_data.pose.position - predicted_position
+
+def ekf_predict( odometry_data ):
+    """ Steps predicted position with new information from the odometry
+        node.
+    """
+
+    predicted_position = odometry_data.pose.position + odometry_offset
     #TODO: Expression for variance
 
-def odometry_callback( data ):
-    rospy.loginfo("Update: " + data.data)
+def odometry_callback( odometry_msg ):
+    """ Routine that gets executed when a message from the odometry
+        node is received.
+    """
 
-    #TODO: Extract position and variance out of odometry data
-    position = 1
-    variance = 1
+    odometry_data = odometry_msg.pose
+    ekf_predict(odometry_data)
 
-    ekf_predict(position, variance)
+    #rospy.loginfo("Odometry: x:%i, y:%i, z:%i" % (odometry_msg.pose.pose.position.x,
+    #                                              odometry_msg.pose.pose.position.y,
+    #                                              odometry_msg.pose.pose.position.z))
 
-def sensor_callback( data ):
-    rospy.loginfo("Predict: " + data.data)
+def sensor_callback( sensor_msg ):
+    """ Routine that gets executed when a message from the position
+        sensor (Nanoloc) is received.
+    """
 
-    #TODO: Extract position and variance out of sensor data
-    position = 1
-    variance = 1
+    sensor_data = sensor_msg
+    ekf_branch(sensor_data)
 
-    ekf_update(position, variance)
+    #rospy.loginfo("Sensor: x:%i, y:%i, z:%i" % (sensor_msg.pose.position.x,
+    #                                            sensor_msg.pose.position.y,
+    #                                            sensor_msg.pose.position.z))
 
 def publish_position():
+    """ Publishes the current position and variance to the topic
+        /ekf_position as 'PoseWithCovariance' message.
+
+        Message type 'PoseWithCovariance':
+            msg:
+            {
+                pose
+                covariance
+            }
+    """
+
     pub  = rospy.Publisher('ekf_position', String, queue_size=10)
     rate = rospy.Rate(1) # 1hz
 
     while not rospy.is_shutdown():
-        #TODO: Publish position in right format
-        pub_str = "current_position: %s" % current_position
-        pub.publish(pub_str)
+        msg = PoseWithCovariance()
 
-        rospy.loginfo(pub_str)
+        msg.pose.position = current_position
+        msg.covariance    = current_position_var
+
+        pub.publish(msg)
         rate.sleep()
 
 if __name__ == '__main__':
