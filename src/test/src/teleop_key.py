@@ -10,6 +10,8 @@ def teleop():
 		topic = "RosAria"
 	elif argv[1] == "SIM":
 		topic = "pioneer2dx"
+	else:
+		topic = "RosAria"
 
 	rospy.init_node('teleop_key', anonymous = False)
 
@@ -23,10 +25,10 @@ def teleop():
 		movement = raw_input()
 
 		if movement.upper() == "W":
-			twist.linear.x += 0.5
+			twist.linear.x += 0.1
 			twist.linear.y = 0
 		elif movement.upper() == "S":
-			twist.linear.x += -0.5
+			twist.linear.x += -0.1
 			twist.linear.y = 0
 		elif movement.upper() == "A":
 			twist.linear.y += -0.1
