@@ -13,6 +13,7 @@ class teleop:
 
 		# Defino isto aqui para ter acesso no callback
 		self.pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size=10)
+		#self.pub = rospy.Publisher('/pioneer2dx/cmd_vel', Twist, queue_size=10)
 
 	# Este objeto data e da classe Joy
 	def callback(self, data):
@@ -25,18 +26,26 @@ class teleop:
 		# Ideia tirada de https://github.com/ros-teleop/teleop_twist_keyboard/blob/master/teleop_twist_keyboard.py
 		twist = Twist()
 		try:
-			twist.linear.x = data.buttons[5] - data.buttons[7]; twist.linear.y = data.buttons[4] - data.buttons[6]; twist.linear.z = 0
-			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
+			#twist.linear.x = data.buttons[5] - data.buttons[7]; twist.linear.y = data.buttons[4] - data.buttons[6]; twist.linear.z = 0
+			if data.buttons[4]:				
+				twist.linear.x += 0.2
+			elif data.buttons[6]:
+				twist.linear.x += -0.2
+			if data.buttons[7]:
+				twist.angular.z += -0.2
+			elif data.axes[5]:
+				twist.angular.z += 0.2
+			#twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
 			if not rospy.is_shutdown():
 				self.pub.publish(twist)
 		except:
 			print e
-		finally:
+		#finally:
 			# Significa que houve um erro qualquer a obter os dados do comando
-			twist.linear.x = 0; twist.linear.y = 0; twist.linear.z = 0
-			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
-			if not rospy.is_shutdown():
-				self.pub.publish(twist)
+			#twist.linear.x = 0; twist.linear.y = 0; twist.linear.z = 0
+			#twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
+			#if not rospy.is_shutdown():
+			#	self.pub.publish(twist)
 		
 
 def teleop_ps3():
