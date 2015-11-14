@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
 import rospy
+import numpy as np
+import scipy.stats as stats
+import tf
 from std_msgs.msg import String
 
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance
+from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose
 
 # Constants
 # Number of failed matches before position reset
@@ -12,18 +15,27 @@ MATCH_THRESHOLD = 10
 
 # State Variables
 # Predicted State
-predicted_position     = 0
-predicted_position_var = 0
+predicted_position     = Pose()
+predicted_position_var = np.matrix([[0 0],[0 0]])
 
 # Current State
-current_position     = 0
-current_position_var = 0
+current_position     = Pose()
+current_position_var = np.matrix([[0 0],[0 0]])
 
 # Internal variables
 # Odometry corrective offset
 odometry_offset = 0
 # Number of times matching has failed
 matching_fails  = 0
+
+# Last State variables
+Old_odomery_data = PoseWithCovariance()
+
+# Odometry covariance matrix
+Qk = np.matrix([[0.000001020833333 0.0],[0.0 0.000001020833333]])
+
+# Nanoloc covariance matrix
+Rk = np.matrix([[0.0 0.0],[0.0 0.00]])
 
 def ekf_branch( sensor_data ):
     """ Branches between absolute positioning and update step.
@@ -57,8 +69,16 @@ def ekf_match( sensor_data ):
         overlap.
     """
 
+    s = sensor_data
+    p = predicted_norm
+
+    R1 = stats.norm.interval(0.9,loc = 0, scale = predicted_position_var[0][0])
+    R2 = stats.norm.interval(0.9,loc = 0, scale = current_position_var[0][0])
+
     #TODO: Write matching criterion
-    if sensor_data.pose.position == predicted_position:
+    # O criterio de matching verifica-se caso as circunferencias que definem o 0.9
+    # de probabilidade comulativa se tocarem. 
+    if np.linalg.norm([s.x,s.y],[p.x,p.y]) < R1 + R2:
         return True
     else:
         return False
@@ -69,7 +89,14 @@ def ekf_update( sensor_data ):
         sensors.
     """
 
-    pass
+    current_position_var = predicted_position_var + Rk # Nos slides isto chama-se S
+
+    # Kalman Gain
+    K = predicted_position_var*np.linalg.inv(current_position_var)
+
+    Z = numpy.array([sensor_data.pose.position.x sensor_data.pose.position.y])
+
+    current_position = predicted_position + K*(Z - predicted_position)
 
 def ekf_absolute_positioning(sensor_data):
     """ Absolute positioing routine.
@@ -82,13 +109,18 @@ def ekf_absolute_positioning(sensor_data):
 
     odometry_offset = sensor_data.pose.position - predicted_position
 
-def ekf_predict( odometry_data ):
+def ekf_predict( odometry_data, old_odometry_data ):
     """ Steps predicted position with new information from the odometry
         node.
     """
 
-    predicted_position = odometry_data.pose.position + odometry_offset
-    #TODO: Expression for variance
+    # Calculates the ammount moved since the last callback
+    delta_pos = odometry_data.pose.position - old_odometry_data.pose.position
+
+    predicted_position.pose.position = odometry_data.pose.position + delta_pos
+
+    predicted_position_var = predicted_position_var + Qk
+    
 
 def odometry_callback( odometry_msg ):
     """ Routine that gets executed when a message from the odometry
@@ -96,7 +128,8 @@ def odometry_callback( odometry_msg ):
     """
 
     odometry_data = odometry_msg.pose
-    ekf_predict(odometry_data)
+    ekf_predict(odometry_data,Old_odomery_data)
+    Old_odomery_data = odometry_data
 
     #rospy.loginfo("Odometry: x:%i, y:%i, z:%i" % (odometry_msg.pose.pose.position.x,
     #                                              odometry_msg.pose.pose.position.y,
@@ -141,8 +174,8 @@ def publish_position():
 if __name__ == '__main__':
     rospy.init_node('ekf_position', anonymous=True)
 
-    rospy.Subscriber("odometry", String, odometry_callback)
-    rospy.Subscriber("sensor"  , String, sensor_callback  )
+    rospy.Subscriber("/RosAria/pose", String, odometry_callback)
+    rospy.Subscriber("nanoloc"  , String, sensor_callback  )
 
     try:
         publish_position()
