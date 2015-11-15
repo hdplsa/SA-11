@@ -514,90 +514,6 @@ rosaria_genpy/fast:
 .PHONY : rosaria_genpy/fast
 
 # Convenience name for target.
-rosaria/CMakeFiles/roscpp_generate_messages_cpp.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/roscpp_generate_messages_cpp.dir/rule
-.PHONY : rosaria/CMakeFiles/roscpp_generate_messages_cpp.dir/rule
-
-# Convenience name for target.
-roscpp_generate_messages_cpp: rosaria/CMakeFiles/roscpp_generate_messages_cpp.dir/rule
-.PHONY : roscpp_generate_messages_cpp
-
-# fast build rule for target.
-roscpp_generate_messages_cpp/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/roscpp_generate_messages_cpp.dir/build.make rosaria/CMakeFiles/roscpp_generate_messages_cpp.dir/build
-.PHONY : roscpp_generate_messages_cpp/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/roscpp_generate_messages_lisp.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/roscpp_generate_messages_lisp.dir/rule
-.PHONY : rosaria/CMakeFiles/roscpp_generate_messages_lisp.dir/rule
-
-# Convenience name for target.
-roscpp_generate_messages_lisp: rosaria/CMakeFiles/roscpp_generate_messages_lisp.dir/rule
-.PHONY : roscpp_generate_messages_lisp
-
-# fast build rule for target.
-roscpp_generate_messages_lisp/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/roscpp_generate_messages_lisp.dir/build.make rosaria/CMakeFiles/roscpp_generate_messages_lisp.dir/build
-.PHONY : roscpp_generate_messages_lisp/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/roscpp_generate_messages_py.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/roscpp_generate_messages_py.dir/rule
-.PHONY : rosaria/CMakeFiles/roscpp_generate_messages_py.dir/rule
-
-# Convenience name for target.
-roscpp_generate_messages_py: rosaria/CMakeFiles/roscpp_generate_messages_py.dir/rule
-.PHONY : roscpp_generate_messages_py
-
-# fast build rule for target.
-roscpp_generate_messages_py/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/roscpp_generate_messages_py.dir/build.make rosaria/CMakeFiles/roscpp_generate_messages_py.dir/build
-.PHONY : roscpp_generate_messages_py/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/rosgraph_msgs_generate_messages_cpp.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/rosgraph_msgs_generate_messages_cpp.dir/rule
-.PHONY : rosaria/CMakeFiles/rosgraph_msgs_generate_messages_cpp.dir/rule
-
-# Convenience name for target.
-rosgraph_msgs_generate_messages_cpp: rosaria/CMakeFiles/rosgraph_msgs_generate_messages_cpp.dir/rule
-.PHONY : rosgraph_msgs_generate_messages_cpp
-
-# fast build rule for target.
-rosgraph_msgs_generate_messages_cpp/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/rosgraph_msgs_generate_messages_cpp.dir/build.make rosaria/CMakeFiles/rosgraph_msgs_generate_messages_cpp.dir/build
-.PHONY : rosgraph_msgs_generate_messages_cpp/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/rosgraph_msgs_generate_messages_lisp.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/rosgraph_msgs_generate_messages_lisp.dir/rule
-.PHONY : rosaria/CMakeFiles/rosgraph_msgs_generate_messages_lisp.dir/rule
-
-# Convenience name for target.
-rosgraph_msgs_generate_messages_lisp: rosaria/CMakeFiles/rosgraph_msgs_generate_messages_lisp.dir/rule
-.PHONY : rosgraph_msgs_generate_messages_lisp
-
-# fast build rule for target.
-rosgraph_msgs_generate_messages_lisp/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/rosgraph_msgs_generate_messages_lisp.dir/build.make rosaria/CMakeFiles/rosgraph_msgs_generate_messages_lisp.dir/build
-.PHONY : rosgraph_msgs_generate_messages_lisp/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/rule
-.PHONY : rosaria/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/rule
-
-# Convenience name for target.
-rosgraph_msgs_generate_messages_py: rosaria/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/rule
-.PHONY : rosgraph_msgs_generate_messages_py
-
-# fast build rule for target.
-rosgraph_msgs_generate_messages_py/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/build.make rosaria/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/build
-.PHONY : rosgraph_msgs_generate_messages_py/fast
-
-# Convenience name for target.
 rosaria/CMakeFiles/sensor_msgs_generate_messages_cpp.dir/rule:
 	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/sensor_msgs_generate_messages_cpp.dir/rule
 .PHONY : rosaria/CMakeFiles/sensor_msgs_generate_messages_cpp.dir/rule
@@ -638,48 +554,6 @@ sensor_msgs_generate_messages_py: rosaria/CMakeFiles/sensor_msgs_generate_messag
 sensor_msgs_generate_messages_py/fast:
 	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/sensor_msgs_generate_messages_py.dir/build.make rosaria/CMakeFiles/sensor_msgs_generate_messages_py.dir/build
 .PHONY : sensor_msgs_generate_messages_py/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/std_msgs_generate_messages_cpp.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/std_msgs_generate_messages_cpp.dir/rule
-.PHONY : rosaria/CMakeFiles/std_msgs_generate_messages_cpp.dir/rule
-
-# Convenience name for target.
-std_msgs_generate_messages_cpp: rosaria/CMakeFiles/std_msgs_generate_messages_cpp.dir/rule
-.PHONY : std_msgs_generate_messages_cpp
-
-# fast build rule for target.
-std_msgs_generate_messages_cpp/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/std_msgs_generate_messages_cpp.dir/build.make rosaria/CMakeFiles/std_msgs_generate_messages_cpp.dir/build
-.PHONY : std_msgs_generate_messages_cpp/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/std_msgs_generate_messages_lisp.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/std_msgs_generate_messages_lisp.dir/rule
-.PHONY : rosaria/CMakeFiles/std_msgs_generate_messages_lisp.dir/rule
-
-# Convenience name for target.
-std_msgs_generate_messages_lisp: rosaria/CMakeFiles/std_msgs_generate_messages_lisp.dir/rule
-.PHONY : std_msgs_generate_messages_lisp
-
-# fast build rule for target.
-std_msgs_generate_messages_lisp/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/std_msgs_generate_messages_lisp.dir/build.make rosaria/CMakeFiles/std_msgs_generate_messages_lisp.dir/build
-.PHONY : std_msgs_generate_messages_lisp/fast
-
-# Convenience name for target.
-rosaria/CMakeFiles/std_msgs_generate_messages_py.dir/rule:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f CMakeFiles/Makefile2 rosaria/CMakeFiles/std_msgs_generate_messages_py.dir/rule
-.PHONY : rosaria/CMakeFiles/std_msgs_generate_messages_py.dir/rule
-
-# Convenience name for target.
-std_msgs_generate_messages_py: rosaria/CMakeFiles/std_msgs_generate_messages_py.dir/rule
-.PHONY : std_msgs_generate_messages_py
-
-# fast build rule for target.
-std_msgs_generate_messages_py/fast:
-	cd /home/hdplsa/catkin_ws/build && $(MAKE) -f rosaria/CMakeFiles/std_msgs_generate_messages_py.dir/build.make rosaria/CMakeFiles/std_msgs_generate_messages_py.dir/build
-.PHONY : std_msgs_generate_messages_py/fast
 
 # Convenience name for target.
 rosaria/CMakeFiles/tf2_msgs_generate_messages_cpp.dir/rule:
@@ -851,18 +725,9 @@ help:
 	@echo "... rosaria_generate_messages_py"
 	@echo "... rosaria_genlisp"
 	@echo "... rosaria_genpy"
-	@echo "... roscpp_generate_messages_cpp"
-	@echo "... roscpp_generate_messages_lisp"
-	@echo "... roscpp_generate_messages_py"
-	@echo "... rosgraph_msgs_generate_messages_cpp"
-	@echo "... rosgraph_msgs_generate_messages_lisp"
-	@echo "... rosgraph_msgs_generate_messages_py"
 	@echo "... sensor_msgs_generate_messages_cpp"
 	@echo "... sensor_msgs_generate_messages_lisp"
 	@echo "... sensor_msgs_generate_messages_py"
-	@echo "... std_msgs_generate_messages_cpp"
-	@echo "... std_msgs_generate_messages_lisp"
-	@echo "... std_msgs_generate_messages_py"
 	@echo "... test"
 	@echo "... tf2_msgs_generate_messages_cpp"
 	@echo "... tf2_msgs_generate_messages_lisp"

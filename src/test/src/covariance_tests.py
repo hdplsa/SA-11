@@ -20,14 +20,14 @@ def tests():
 
 	sleep(1)
 
-	twist.linear.x = 0.1; twist.linear.y = 0; twist.linear.z = 0
+	twist.linear.x = 0.25; twist.linear.y = 0; twist.linear.z = 0
 	twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
 
 	pub.publish(twist) 
 
-	sleep(5)
+	sleep(8)
 
-	twist.linear.x = -0.1; twist.linear.y = 0; twist.linear.z = 0
+	twist.linear.x = 0; twist.linear.y = 0; twist.linear.z = 0
 	twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0
 
 	pub.publish(twist) 
@@ -41,7 +41,7 @@ def tests():
 
 	sleep(5)
 
-	ros.spin()
+	#ros.spin()
 
 if __name__ == "__main__":
 	tests()
