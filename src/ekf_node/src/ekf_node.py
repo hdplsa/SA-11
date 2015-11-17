@@ -82,6 +82,9 @@ def ekf_update( sensor_data ):
         sensors.
     """
 
+    print "UPDATE"
+
+    global current_position
     global current_position_var
     global predicted_position_var
     global predicted_position
@@ -93,16 +96,19 @@ def ekf_update( sensor_data ):
     # Kalman Gain
     K = predicted_position_var*np.linalg.inv(current_position_var)
 
-    Z = np.array([sensor_data.position.x,sensor_data.position.y])
+    Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
 
     aux = np.array([[p.x],[p.y]])
 
     aux_current = aux + K*(Z - aux)
 
-    point = Point()
-    p.x = aux_current[0]; p.y = aux_current[1]; p.z = 0;
+    print "aux:"
+    print aux
 
-    current_position.position = aux_current
+    point = Point()
+    point.x = float(aux_current[0]); point.y = float(aux_current[1]); p.z = 0;
+
+    current_position.position = point
 
 def ekf_absolute_positioning(sensor_data):
     """ Absolute positioning routine.
@@ -150,7 +156,8 @@ def ekf_predict( odometry_data, old_odometry_data ):
     new_pos.x = delta_d * math.cos(theta)
     new_pos.y = delta_d * math.sin(theta)
 
-    predicted_position.position = add_positions(odometry_data.pose.position, new_pos)
+    predicted_position.position = add_positions(predicted_position.position, new_pos)
+    predicted_position.orientation = odometry_data.pose.orientation
 
     predicted_position_var = predicted_position_var + Qk
     
