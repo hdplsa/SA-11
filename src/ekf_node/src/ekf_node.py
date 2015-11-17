@@ -6,6 +6,7 @@ import math
 import scipy.stats as stats
 import tf
 from std_msgs.msg import String
+from tf.transformations import euler_from_quaternion
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose
@@ -20,26 +21,33 @@ def ekf_branch( sensor_data ):
         On the other side if the match is unsucessfull the
         absolute positioning is executed.
     """
+
     global predicted_position
     global predicted_position_var
     global matching_fails
+    global current_position
+    global current_position_var
 
     if ekf_match(sensor_data):
         # Match sucessfull, update position
         ekf_update(sensor_data)
 
-    elif matching_fails > MATCH_THRESHOLD:
+    elif matching_fails >= MATCH_THRESHOLD:
         # Initiate absolute Positioning
         ekf_absolute_positioning(sensor_data)
 
     elif matching_fails < MATCH_THRESHOLD:
         # Increment match fail counter and ignore message
         matching_fails += 1
+        print "%s - #%d" %("Matching fails",matching_fails)
         return
 
     predicted_position     = current_position
     predicted_position_var = current_position_var
     matching_fails = 0
+
+    print "Predicted Position:"
+    print predicted_position
 
 def ekf_match( sensor_data ):
     """ Matches current predicted position and the sensor position
@@ -50,21 +58,20 @@ def ekf_match( sensor_data ):
 
     global predicted_position
     global predicted_position_var
-    global current_position_var
 
     s = sensor_data
     p = predicted_position
 
-    R1 = stats.norm.interval(0.9,loc = 0, scale = predicted_position_var[0][0])
-    R2 = stats.norm.interval(0.9,loc = 0, scale = current_position_var[0][0])
+    R1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])
+    R2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
 
-    #TODO: Write matching criterion
     # O criterio de matching verifica-se caso as circunferencias que definem o 0.9
     # de probabilidade comulativa se tocarem. 
 
-    print R1[0]
-
-    if math.sqrt((s.position.x-p.position.x)**2 + (s.position.y-p.position.y)**2) < R1 + R2:
+    print "Predicted: [%f,%f]; Nanoloc:[%f,%f]" %(p.position.x,p.position.y,s.position.x,s.position.y)
+    print "Rpredicted: %f; Rnanoloc: %f" %(R1[1],R2[1])
+    if math.sqrt((s.position.x-p.position.x)**2 + (s.position.y-p.position.y)**2) < R1[1] + R2[1]:
+        print "MATCH"
         return True
     else:
         return False
@@ -90,8 +97,6 @@ def ekf_update( sensor_data ):
 
     aux = np.array([[p.x],[p.y]])
 
-    print aux
-
     aux_current = aux + K*(Z - aux)
 
     point = Point()
@@ -100,15 +105,24 @@ def ekf_update( sensor_data ):
     current_position.position = aux_current
 
 def ekf_absolute_positioning(sensor_data):
-    """ Absolute positioing routine.
+    """ Absolute positioning routine.
         Overwrites current position with the position information
         of the sensor.
     """
 
-    current_position     = sensor_data.pose.position
-    current_position_var = sensor_data.covariance
+    global current_position
+    global current_position_var
+    global odometry_offset
 
-    odometry_offset = sensor_data.pose.position - predicted_position
+    print sensor_data.position
+
+    current_position     = sensor_data
+    current_position_var = Rk
+
+    odometry_offset = subtract_positions(sensor_data.position,predicted_position.position)
+
+    print "Absolute positioning triggered."
+    print "New pedicted position [%f, %f]" %(current_position.position.x,current_position.position.y)
 
 def ekf_predict( odometry_data, old_odometry_data ):
     """ Steps predicted position with new information from the odometry
@@ -118,18 +132,25 @@ def ekf_predict( odometry_data, old_odometry_data ):
     global predicted_position_var
     global predicted_position
 
-    # Calculates the ammount moved since the last callback
-    delta_x = odometry_data.pose.position.x - old_odometry_data.pose.position.x
-    delta_y = odometry_data.pose.position.y - old_odometry_data.pose.position.y
-    delta_z = odometry_data.pose.position.z - old_odometry_data.pose.position.z
+    # Calculates the norm of the ammount moved since the last callback
+    delta_d = point_norm(subtract_positions(odometry_data.pose.position, old_odometry_data.pose.position))
 
-    aux = Point()
+    quaternion = [odometry_data.pose.orientation.x,
+    	odometry_data.pose.orientation.y,
+    	odometry_data.pose.orientation.z,
+    	odometry_data.pose.orientation.w]
 
-    aux.x = odometry_data.pose.position.x + delta_x
-    aux.y = odometry_data.pose.position.y + delta_y
-    aux.z = odometry_data.pose.position.z + delta_z
+    # Gets the yaw (rotation in z) from the quaternion
+    (roll,pitch,yaw) = euler_from_quaternion(quaternion)
 
-    predicted_position.position = aux
+    theta = yaw
+
+    new_pos = Point()
+
+    new_pos.x = delta_d * math.cos(theta)
+    new_pos.y = delta_d * math.sin(theta)
+
+    predicted_position.position = add_positions(odometry_data.pose.position, new_pos)
 
     predicted_position_var = predicted_position_var + Qk
     
@@ -184,6 +205,21 @@ def publish_position():
 
         pub.publish(msg)
         rate.sleep()
+
+# Funcoes para trabalhar com os pontos
+
+def subtract_positions(pos1, pos2):
+	aux = Point()
+	aux.x = pos1.x - pos2.x; aux.y = pos1.y - pos2.y; aux.z = 0;
+	return aux
+
+def add_positions(pos1, pos2):
+	aux = Point()
+	aux.x = pos1.x + pos2.x; aux.y = pos1.y + pos2.y; aux.z = 0;
+	return aux
+
+def point_norm(pos):
+	return math.sqrt(pos.x**2+pos.y**2)
 
 if __name__ == '__main__':
 
