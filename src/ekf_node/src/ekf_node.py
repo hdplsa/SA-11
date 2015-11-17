@@ -91,10 +91,10 @@ def ekf_update( sensor_data ):
 
     p = predicted_position.position
 
-    current_position_var = predicted_position_var + Rk # Nos slides isto chama-se S
+    S = predicted_position_var + Rk # Nos slides isto chama-se S
 
     # Kalman Gain
-    K = predicted_position_var*np.linalg.inv(current_position_var)
+    K = predicted_position_var*np.linalg.inv(S)
 
     Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
 
@@ -109,6 +109,8 @@ def ekf_update( sensor_data ):
     point.x = float(aux_current[0]); point.y = float(aux_current[1]); p.z = 0;
 
     current_position.position = point
+
+    current_position_var = predicted_position_var - K*S*np.matrix.transpose(K)
 
 def ekf_absolute_positioning(sensor_data):
     """ Absolute positioning routine.
@@ -159,8 +161,8 @@ def ekf_predict( odometry_data, old_odometry_data ):
     predicted_position.position = add_positions(predicted_position.position, new_pos)
     predicted_position.orientation = odometry_data.pose.orientation
 
-    predicted_position_var = predicted_position_var + Qk
-    
+    predicted_position_var = predicted_position_var + Qk*np.array([[delta_d*math.cos(theta),0],
+    															   [0,delta_d*math.sin(theta)]])
 
 def odometry_callback( odometry_msg ):
     """ Routine that gets executed when a message from the odometry
@@ -267,7 +269,7 @@ if __name__ == '__main__':
 	Qk = np.matrix([[0.000001020833333,0.0],[0.0,0.000001020833333]])
 
 	# Nanoloc covariance matrix
-	Rk = np.matrix([[0.0015,0.0],[0.0,0.0015]])
+	Rk = np.matrix([[0.030695539,0.0],[0.0,0.115043563]])
 
 	rospy.init_node('ekf_position', anonymous=True)
 

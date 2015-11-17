@@ -40,11 +40,11 @@ while not rospy.is_shutdown():
 
 		print("Tag: %s, Time: %s, X: %s, Y: %s" % (data[0], data[1], data[2], data[3]))
 		
-		print("Data2:" + data[2])
-		print(float(data[2]))
-
-		print("Data3:" + data[3])
-		print(float(data[3]))
+#		print("Data2:" + data[2])
+#		print(float(data[2]))
+#
+#		print("Data3:" + data[3])
+#		print(float(data[3]))
 
 		plt.scatter(float(data[2]), float(data[3]))
 		plt.draw()
