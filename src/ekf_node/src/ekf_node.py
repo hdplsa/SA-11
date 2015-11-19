@@ -1,9 +1,13 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 
+# Lib imports
 import rospy
 import numpy as np
 import math
 import scipy.stats as stats
+import time, threading
+
+# ROS specific imports
 import tf
 from std_msgs.msg import String
 from tf.transformations import euler_from_quaternion
@@ -27,14 +31,21 @@ def ekf_branch( sensor_data ):
     global matching_fails
     global current_position
     global current_position_var
+    global absolute_positioning_active
 
     if ekf_match(sensor_data):
         # Match sucessfull, update position
         ekf_update(sensor_data)
 
+    elif absolute_positioning_active:
+        # Update calibration positions
+        ekf_absolute_positioning(sensor_data)
+        return
+
     elif matching_fails >= MATCH_THRESHOLD:
         # Initiate absolute Positioning
-        ekf_absolute_positioning(sensor_data)
+        ekf_absolute_positioning_routine_1(sensor_data)
+        return
 
     elif matching_fails < MATCH_THRESHOLD:
         # Increment match fail counter and ignore message
@@ -66,7 +77,7 @@ def ekf_match( sensor_data ):
     R2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
 
     # O criterio de matching verifica-se caso as circunferencias que definem o 0.9
-    # de probabilidade comulativa se tocarem. 
+    # de probabilidade comulativa se tocarem.
 
     print "Predicted: [%f,%f]; Nanoloc:[%f,%f]" %(p.position.x,p.position.y,s.position.x,s.position.y)
     print "Rpredicted: %f; Rnanoloc: %f" %(R1[1],R2[1])
@@ -122,15 +133,98 @@ def ekf_absolute_positioning(sensor_data):
     global current_position_var
     global odometry_offset
 
-    print sensor_data.position
+    global absolute_positioning_location
 
-    current_position     = sensor_data
-    current_position_var = Rk
+    global pos1
+    global pos1_var
 
-    odometry_offset = subtract_positions(sensor_data.position,predicted_position.position)
+    # Agent is in first calibration position
+    if absolute_positioning_location == 1:
+        # First sample
+        if pos1 == -1:
+            pos1     = sensor_data
+            pos1_var = Rk
+        # Kalman filter to update first calibration position estimate
+        else:
+            S = pos1_var + Rk
+            K = pos1_var*np.linalg.inv(S)
+            Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
+
+            pos1 = pos1 + K*(Z - pos1)
+            pos1_var = pos1_var - K*S*np.matrix.transpose(K)
+
+            print "Calibration Point 1:"
+            print(pos1)
+
+    # Agent is in first calibration position
+    elif absolute_positioning_location == 2:
+        # First sample
+        if pos2 == -1:
+            pos2     = sensor_data
+            pos2_var = Rk
+        # Kalman filter to update first calibration position estimate
+        else:
+            S = pos2_var + Rk
+            K = pos2_var*np.linalg.inv(S)
+            Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
+
+            pos2 = pos2 + K*(Z - pos1)
+            pos2_var = pos2_var - K*S*np.matrix.transpose(K)
+
+            print "Calibration Point 1:"
+            print(pos2)
+
+# Start at calibration location 1
+def ekf_absolute_positioning_routine_1(sensor_data):
+    global absolute_positioning_active
+    global calib
 
     print "Absolute positioning triggered."
-    print "New pedicted position [%f, %f]" %(current_position.position.x,current_position.position.y)
+
+    absolute_positioning_active   = True
+    absolute_positioning_location = 1
+
+    threading.Timer(5, ekf_absolute_positioning_routine_2).start()
+
+# Move to calibration location 2
+def ekf_absolute_positioning_routine_2(sensor_data):
+    global absolute_positioning_location
+
+    absolute_positioning_location = 0
+    # Send comand to pioneer to set velocity at x
+
+    threading.Timer(5, ekf_absolute_positioning_routine_3).start()
+
+# Arrived at calibration position 2
+def ekf_absolute_positioning_routine_3(sensor_data):
+    global absolute_positioning_location
+
+    # Send comand to pioneer to stop
+    absolute_positioning_location = 2
+
+    threading.Timer(5, ekf_absolute_positioning_routine_4).start()
+
+# Move to calibration location 1
+def ekf_absolute_positioning_routine_4(sensor_data):
+    global absolute_positioning_location
+
+    # Send comand to pioneer to drive backwards
+    absolute_positioning_location = 0
+
+    threading.Timer(5, ekf_absolute_positioning_routine_5).start()
+
+# Arrived at calibration position 1
+def ekf_absolute_positioning_routine_4(sensor_data):
+    global absolute_positioning_location
+    global absolute_positioning_active
+
+    # Send comand to pioneer to stop
+    absolute_positioning_location = 1
+
+    absolute_positioning_active   = False
+
+    # current_position = pos1
+    # current_position_var = Rk
 
 def ekf_predict( odometry_data, old_odometry_data ):
     """ Steps predicted position with new information from the odometry
@@ -234,7 +328,7 @@ if __name__ == '__main__':
 
 	global MATCH_THRESHOLD
 	global predicted_position
-	global predicted_position_var 
+	global predicted_position_var
 	global current_position
 	global current_position_var
 	global odometry_offset
