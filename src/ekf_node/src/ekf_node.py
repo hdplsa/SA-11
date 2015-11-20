@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python 
 
 # Lib imports
 import rospy
@@ -6,15 +6,12 @@ import numpy as np
 import math
 import scipy.stats as stats
 import time, threading
-
 # ROS specific imports
 import tf
 from std_msgs.msg import String
 from tf.transformations import euler_from_quaternion
-
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose, Twist
 
 # As constantes passaram para la para baixo
 
@@ -40,13 +37,11 @@ def ekf_branch( sensor_data ):
     elif absolute_positioning_active:
         # Update calibration positions
         ekf_absolute_positioning(sensor_data)
-        return
 
     elif matching_fails >= MATCH_THRESHOLD:
         # Initiate absolute Positioning
-        ekf_absolute_positioning_routine_1(sensor_data)
-        return
-
+        ekf_absolute_positioning_routine_1()
+        
     elif matching_fails < MATCH_THRESHOLD:
         # Increment match fail counter and ignore message
         matching_fails += 1
@@ -57,8 +52,8 @@ def ekf_branch( sensor_data ):
     predicted_position_var = current_position_var
     matching_fails = 0
 
-    print "Predicted Position:"
-    print predicted_position
+    #print "Predicted Position:"
+    #print predicted_position
 
 def ekf_match( sensor_data ):
     """ Matches current predicted position and the sensor position
@@ -79,8 +74,8 @@ def ekf_match( sensor_data ):
     # O criterio de matching verifica-se caso as circunferencias que definem o 0.9
     # de probabilidade comulativa se tocarem.
 
-    print "Predicted: [%f,%f]; Nanoloc:[%f,%f]" %(p.position.x,p.position.y,s.position.x,s.position.y)
-    print "Rpredicted: %f; Rnanoloc: %f" %(R1[1],R2[1])
+    #print "Predicted: [%f,%f]; Nanoloc:[%f,%f]" %(p.position.x,p.position.y,s.position.x,s.position.y)
+    #print "Rpredicted: %f; Rnanoloc: %f" %(R1[1],R2[1])
     if math.sqrt((s.position.x-p.position.x)**2 + (s.position.y-p.position.y)**2) < R1[1] + R2[1]:
         print "MATCH"
         return True
@@ -101,6 +96,7 @@ def ekf_update( sensor_data ):
     global predicted_position
 
     p = predicted_position.position
+    print p
 
     S = predicted_position_var + Rk # Nos slides isto chama-se S
 
@@ -129,6 +125,8 @@ def ekf_absolute_positioning(sensor_data):
         of the sensor.
     """
 
+    print "abs pos"
+
     global current_position
     global current_position_var
     global odometry_offset
@@ -138,13 +136,19 @@ def ekf_absolute_positioning(sensor_data):
     global pos1
     global pos1_var
 
+    global pos2
+    global pos2_var
+
+    global pos1_x
+
     # Agent is in first calibration position
     if absolute_positioning_location == 1:
         # First sample
-        if pos1 == -1:
-            pos1     = sensor_data
-            pos1_var = Rk
-        # Kalman filter to update first calibration position estimate
+        if pos1[0][0] == -1:
+        	pos1_x   = np.array([sensor_data.position.x])
+        	pos1     = np.array([[sensor_data.position.x],[sensor_data.position.y]])
+        	pos1_var = Rk
+      	# Kalman filter to update first calibration position estimate
         else:
             S = pos1_var + Rk
             K = pos1_var*np.linalg.inv(S)
@@ -152,15 +156,13 @@ def ekf_absolute_positioning(sensor_data):
 
             pos1 = pos1 + K*(Z - pos1)
             pos1_var = pos1_var - K*S*np.matrix.transpose(K)
-
-            print "Calibration Point 1:"
-            print(pos1)
+            pos1_x = np.append(pos1_x, sensor_data.position.x)
 
     # Agent is in first calibration position
     elif absolute_positioning_location == 2:
         # First sample
-        if pos2 == -1:
-            pos2     = sensor_data
+        if pos2[0][0] == -1:
+            pos2     = np.array([[sensor_data.position.x],[sensor_data.position.y]])
             pos2_var = Rk
         # Kalman filter to update first calibration position estimate
         else:
@@ -171,60 +173,116 @@ def ekf_absolute_positioning(sensor_data):
             pos2 = pos2 + K*(Z - pos1)
             pos2_var = pos2_var - K*S*np.matrix.transpose(K)
 
-            print "Calibration Point 1:"
-            print(pos2)
-
 # Start at calibration location 1
-def ekf_absolute_positioning_routine_1(sensor_data):
+def ekf_absolute_positioning_routine_1():
     global absolute_positioning_active
-    global calib
+    global absolute_positioning_location
 
     print "Absolute positioning triggered."
 
     absolute_positioning_active   = True
     absolute_positioning_location = 1
 
-    threading.Timer(5, ekf_absolute_positioning_routine_2).start()
+    threading.Timer(15, ekf_absolute_positioning_routine_2).start()
 
 # Move to calibration location 2
-def ekf_absolute_positioning_routine_2(sensor_data):
+def ekf_absolute_positioning_routine_2():
     global absolute_positioning_location
+    global pos1
+    global pos1_x
+
+    print "Calibration Point 1:"
+    print(pos1)
+    print(pos1_x)
+
+    print "Moving to location 2"
 
     absolute_positioning_location = 0
     # Send comand to pioneer to set velocity at x
 
+    pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
+
+    t = Twist()
+    t.linear.x = 0.1; t.linear.y = 0; t.linear.z = 0;
+
+    pub.publish(t)
+
     threading.Timer(5, ekf_absolute_positioning_routine_3).start()
 
 # Arrived at calibration position 2
-def ekf_absolute_positioning_routine_3(sensor_data):
+def ekf_absolute_positioning_routine_3():
     global absolute_positioning_location
+
+    print "Arrived at location 2"
 
     # Send comand to pioneer to stop
+
+    pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
+
+    t = Twist()
+    t.linear.x = 0.0; t.linear.y = 0; t.linear.z = 0;
+
+    pub.publish(t)
+
     absolute_positioning_location = 2
 
-    threading.Timer(5, ekf_absolute_positioning_routine_4).start()
+    threading.Timer(15, ekf_absolute_positioning_routine_4).start()
 
 # Move to calibration location 1
-def ekf_absolute_positioning_routine_4(sensor_data):
+def ekf_absolute_positioning_routine_4():
     global absolute_positioning_location
 
+    print "Moving to location 1"
+
+    print "Calibration Point 2:"
+    print(pos2)
+
     # Send comand to pioneer to drive backwards
+
+    pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
+
+    t = Twist()
+    t.linear.x = -0.1; t.linear.y = 0; t.linear.z = 0;
+
+    pub.publish(t)
+
     absolute_positioning_location = 0
 
     threading.Timer(5, ekf_absolute_positioning_routine_5).start()
 
 # Arrived at calibration position 1
-def ekf_absolute_positioning_routine_4(sensor_data):
+def ekf_absolute_positioning_routine_5():
     global absolute_positioning_location
     global absolute_positioning_active
+    global Rk
+
+    global predicted_position 
+    global predicted_position_var
+
+    global current_position
+    global current_position_var
+
+
+    print "Arrived back at location 1. Rotation calibrated."
 
     # Send comand to pioneer to stop
+
+    pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
+
+    t = Twist()
+    t.linear.x = 0; t.linear.y = 0; t.linear.z = 0;
+
+    pub.publish(t)
+
     absolute_positioning_location = 1
 
     absolute_positioning_active   = False
 
-    # current_position = pos1
-    # current_position_var = Rk
+    current_position.position = Point(float(pos1[0][0]), float(pos1[1][0]),0 )
+    current_position_var = Rk
+
+    predicted_position = current_position
+    predicted_position_var = current_position_var
 
 def ekf_predict( odometry_data, old_odometry_data ):
     """ Steps predicted position with new information from the odometry
@@ -336,6 +394,13 @@ if __name__ == '__main__':
 	global Old_odomery_data
 	global Qk
 	global Rk
+	global absolute_positioning_active
+	global absolute_positioning_location
+	global pos1
+	global pos1_var
+	global pos2
+	global pos2_var
+
 
 	# Constants
 	# Number of failed matches before position reset
@@ -355,6 +420,14 @@ if __name__ == '__main__':
 	odometry_offset = 0
 	# Number of times matching has failed
 	matching_fails  = 0
+	absolute_positioning_active = False
+	absolute_positioning_location = 0
+
+	pos1 = np.array([[-1], [-1]])
+	pos1_var = np.matrix([[0,0],[0,0]])
+
+	pos2 = np.array([[-1], [-1]])
+	pos2_var = np.matrix([[0,0],[0,0]])
 
 	# Last State variables
 	Old_odomery_data = PoseWithCovariance()
@@ -363,12 +436,19 @@ if __name__ == '__main__':
 	Qk = np.matrix([[0.000001020833333,0.0],[0.0,0.000001020833333]])
 
 	# Nanoloc covariance matrix
-	Rk = np.matrix([[0.030695539,0.0],[0.0,0.115043563]])
+	Rk = np.matrix([[0.115043563,0.0],[0.0,0.115043563]])
 
 	rospy.init_node('ekf_position', anonymous=True)
 
 	rospy.Subscriber("/RosAria/pose", Odometry, odometry_callback)
 	rospy.Subscriber("nanoloc"  , Pose, sensor_callback  )
+
+	pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
+
+	t = Twist()
+	t.linear.x = 0; t.linear.y = 0; t.linear.z = 0;
+
+	pub.publish(t)
 
 	try:
 	    publish_position()
