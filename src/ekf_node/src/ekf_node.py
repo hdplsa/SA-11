@@ -68,11 +68,26 @@ def ekf_match( sensor_data ):
     s = sensor_data
     p = predicted_position
 
+
+    print predicted_position.position.x
+    print predicted_position.position.y
+    print s.position.x
+    print s.position.y
+    print predicted_position_var
+    print Qk
+
+  
     R1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])
     R2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
 
     # O criterio de matching verifica-se caso as circunferencias que definem o 0.9
     # de probabilidade comulativa se tocarem.
+
+    print "R1"
+    print R1
+    print "R2"
+    print R2
+
 
     #print "Predicted: [%f,%f]; Nanoloc:[%f,%f]" %(p.position.x,p.position.y,s.position.x,s.position.y)
     #print "Rpredicted: %f; Rnanoloc: %f" %(R1[1],R2[1])
@@ -125,8 +140,6 @@ def ekf_absolute_positioning(sensor_data):
         of the sensor.
     """
 
-    print "abs pos"
-
     global current_position
     global current_position_var
     global odometry_offset
@@ -140,12 +153,18 @@ def ekf_absolute_positioning(sensor_data):
     global pos2_var
 
     global pos1_x
+    global pos1_y
+
+    global pos2_x
+    global pos2_y
 
     # Agent is in first calibration position
     if absolute_positioning_location == 1:
         # First sample
         if pos1[0][0] == -1:
         	pos1_x   = np.array([sensor_data.position.x])
+        	pos1_y   = np.array([sensor_data.position.y])
+
         	pos1     = np.array([[sensor_data.position.x],[sensor_data.position.y]])
         	pos1_var = Rk
       	# Kalman filter to update first calibration position estimate
@@ -156,7 +175,9 @@ def ekf_absolute_positioning(sensor_data):
 
             pos1 = pos1 + K*(Z - pos1)
             pos1_var = pos1_var - K*S*np.matrix.transpose(K)
+
             pos1_x = np.append(pos1_x, sensor_data.position.x)
+            pos1_y = np.append(pos1_y, sensor_data.position.y)
 
     # Agent is in first calibration position
     elif absolute_positioning_location == 2:
@@ -164,6 +185,9 @@ def ekf_absolute_positioning(sensor_data):
         if pos2[0][0] == -1:
             pos2     = np.array([[sensor_data.position.x],[sensor_data.position.y]])
             pos2_var = Rk
+            pos2_x   = np.array([sensor_data.position.x])
+            pos2_y   = np.array([sensor_data.position.y])
+
         # Kalman filter to update first calibration position estimate
         else:
             S = pos2_var + Rk
@@ -172,6 +196,9 @@ def ekf_absolute_positioning(sensor_data):
 
             pos2 = pos2 + K*(Z - pos1)
             pos2_var = pos2_var - K*S*np.matrix.transpose(K)
+
+            pos2_x = np.append(pos2_x, sensor_data.position.x)
+            pos2_y = np.append(pos2_y, sensor_data.position.y)
 
 # Start at calibration location 1
 def ekf_absolute_positioning_routine_1():
@@ -183,13 +210,14 @@ def ekf_absolute_positioning_routine_1():
     absolute_positioning_active   = True
     absolute_positioning_location = 1
 
-    threading.Timer(15, ekf_absolute_positioning_routine_2).start()
+    threading.Timer(10, ekf_absolute_positioning_routine_2).start()
 
 # Move to calibration location 2
 def ekf_absolute_positioning_routine_2():
     global absolute_positioning_location
     global pos1
     global pos1_x
+    global pos1_y
 
     print "Calibration Point 1:"
     print(pos1)
@@ -207,11 +235,13 @@ def ekf_absolute_positioning_routine_2():
 
     pub.publish(t)
 
-    threading.Timer(5, ekf_absolute_positioning_routine_3).start()
+    threading.Timer(20, ekf_absolute_positioning_routine_3).start()
 
 # Arrived at calibration position 2
 def ekf_absolute_positioning_routine_3():
     global absolute_positioning_location
+    global pos2_x
+    global pos2_y
 
     print "Arrived at location 2"
 
@@ -226,11 +256,19 @@ def ekf_absolute_positioning_routine_3():
 
     absolute_positioning_location = 2
 
-    threading.Timer(15, ekf_absolute_positioning_routine_4).start()
+    threading.Timer(10, ekf_absolute_positioning_routine_4).start()
 
 # Move to calibration location 1
 def ekf_absolute_positioning_routine_4():
     global absolute_positioning_location
+    global pos1
+    global pos2
+
+    global pos1_x
+    global pos1_y
+
+    global pos2_x
+    global pos2_y
 
     print "Moving to location 1"
 
@@ -248,7 +286,7 @@ def ekf_absolute_positioning_routine_4():
 
     absolute_positioning_location = 0
 
-    threading.Timer(5, ekf_absolute_positioning_routine_5).start()
+    threading.Timer(20, ekf_absolute_positioning_routine_5).start()
 
 # Arrived at calibration position 1
 def ekf_absolute_positioning_routine_5():
@@ -262,6 +300,10 @@ def ekf_absolute_positioning_routine_5():
     global current_position
     global current_position_var
 
+    global pos1_x
+    global pos1_y
+    global pos2_x
+    global pos2_y
 
     print "Arrived back at location 1. Rotation calibrated."
 
@@ -278,11 +320,33 @@ def ekf_absolute_positioning_routine_5():
 
     absolute_positioning_active   = False
 
-    current_position.position = Point(float(pos1[0][0]), float(pos1[1][0]),0 )
+    
+    pos1_med_x = np.mean(pos1_x)
+    pos1_med_y = np.mean(pos1_y)
+
+    pos2_med_x = np.mean(pos2_x)
+    pos2_med_y = np.mean(pos2_y)
+
+    print("Ponto 1", pos1_med_x, pos1_med_y)
+    print("Ponto 2", pos2_med_x, pos2_med_y)
+
+    v_x = pos2_med_x - pos1_med_x
+    v_y = pos2_med_y - pos1_med_y
+
+    teta = np.arccos(v_x/np.sqrt(v_x**2 + v_y**2))
+    if v_y < 0:
+    	teta = 6.24 - teta 
+    else:
+    	teta = teta
+
+    print("Teta: %i" % teta)
+    print(teta)
+
+    current_position.position = Point(pos1_med_x, pos1_med_y,0 )
     current_position_var = Rk
 
-    predicted_position = current_position
-    predicted_position_var = current_position_var
+    predicted_position              = current_position
+    predicted_position_var          = np.array([[1000,0],[0,1000]])
 
 def ekf_predict( odometry_data, old_odometry_data ):
     """ Steps predicted position with new information from the odometry
@@ -400,8 +464,7 @@ if __name__ == '__main__':
 	global pos1_var
 	global pos2
 	global pos2_var
-
-
+	
 	# Constants
 	# Number of failed matches before position reset
 	MATCH_THRESHOLD = 10

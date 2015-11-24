@@ -24,7 +24,7 @@ rospy.init_node('nanoloc', anonymous = False)
 
 pub = rospy.Publisher('nanoloc', Pose, queue_size = 10)
 
-plt.axis([0, 10, 0, 10])
+plt.axis([0, 6, 0, 6])
 plt.ion()
 plt.show()
 
