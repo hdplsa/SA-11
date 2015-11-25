@@ -86,16 +86,18 @@ def ekf_match( sensor_data ):
     s = sensor_data
     p = predicted_position
 
-    print predicted_position.position.x
-    print predicted_position.position.y
-    print s.position.x
-    print s.position.y
+    print "p.x: %f" %predicted_position.position.x
+    print "p.y: %f" %predicted_position.position.y
+    print "s.x: %f" %s.position.x
+    print "s.y: %f" %s.position.y
     print predicted_position_var
-    print Qk
+    print Rk
 
     #(roll,pitch,yaw) = euler_from_quaternion(predicted_position.orientation)
 
     theta = predicted_rotation
+
+    print "theta: %f" %(theta)
 
     distance_moved = np.sqrt((old_nanoloc_data.position.x-sensor_data.position.x)**2 + (old_nanoloc_data.position.y- sensor_data.position.y)**2)
     if distance_moved > 0.01 and old_nanoloc_data:
@@ -103,15 +105,14 @@ def ekf_match( sensor_data ):
     else:
    		angle = theta
 
+    print "angle: %f" %angle
+
     a1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])[1]
     b1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[1,1])[1]
     c1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[2,2])[1]
     a2 = stats.norm.interval(0.9,loc = 0, scale = Rk[0,0])[1]
     b2 = stats.norm.interval(0.9,loc = 0, scale = Rk[1,1])[1]
     c2 = stats.norm.interval(0.9,loc = 0, scale = Rk[2,2])[1]
-
-    print "Pred pos"
-    print predicted_position
 
     A = np.array([[2.0/(a1**2),0,0,-2.0*p.position.x/a1],
                   [0,2.0/(b1**2),0,-2.0*p.position.y/b1],
@@ -326,6 +327,7 @@ def ekf_absolute_positioning_routine_5():
 
     global predicted_position 
     global predicted_position_var
+    global predicted_rotation
 
     global current_position
     global current_position_var
@@ -381,6 +383,8 @@ def ekf_absolute_positioning_routine_5():
 
     predicted_position              = current_position
     predicted_position_var          = np.array([[1000,0,0],[0,1000,0],[0,0,1000]])
+
+    predicted_rotation = teta
 
 def ekf_predict( odometry_data ):
     """ Steps predicted position with new information from the odometry
