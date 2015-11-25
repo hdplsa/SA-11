@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from subprocess import call # Chamar o nanoloc code na vm
 import rospy
 from geometry_msgs.msg import Pose
+from nav_msgs.msg import Odometry
 
 #try:
 #	call("VBoxManage guestcontrol 'Windows XP' start 'C:\\Program Files\\nanotron\\nanoLoc_AVR_DK\\EXE\\Location\\StartClient.bat' --username 'ROS'",shell=True)
@@ -22,7 +23,7 @@ s.connect(("192.168.56.101", 3456))
 
 rospy.init_node('nanoloc', anonymous = False)
 
-pub = rospy.Publisher('nanoloc', Pose, queue_size = 10)
+pub = rospy.Publisher('nanoloc', Odometry, queue_size = 10)
 
 plt.axis([0, 6, 0, 6])
 plt.ion()
@@ -33,10 +34,11 @@ while not rospy.is_shutdown():
 		data = s.makefile().readline()
 		data = data.split(',')
 
-		pose = Pose();
+		odom = Odometry();
+		pose = odom.pose.pose
 		pose.position.x = float(data[2]); pose.position.y = float(data[3]); pose.position.z = 0;
 
-		pub.publish(pose);
+		pub.publish(odom);
 
 		print("Tag: %s, Time: %s, X: %s, Y: %s" % (data[0], data[1], data[2], data[3]))
 		

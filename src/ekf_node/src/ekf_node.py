@@ -12,10 +12,26 @@ from std_msgs.msg import String
 from tf.transformations import euler_from_quaternion
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose, Twist
+from nav_msgs.msg import Odometry
 
 # As constantes passaram para la para baixo
 
-def ekf_branch( sensor_data, angle ):
+def calcAngle(pos1_x, pos1_y, pos2_x, pos2_y):
+    v_x = pos2_x - pos1_x
+    v_y = pos2_y - pos1_y
+
+    print v_x
+    print v_y
+
+    teta = np.arccos(v_x/np.sqrt(v_x**2 + v_y**2))
+    if v_y < 0:
+        teta = 6.24 - teta
+    else:
+        teta = teta
+
+    return teta
+
+def ekf_branch( sensor_data ):
     """ Branches between absolute positioning and update step.
         If match on sensor position and predicted position is
         succesfull the update step is executed.
@@ -30,7 +46,7 @@ def ekf_branch( sensor_data, angle ):
     global current_position_var
     global absolute_positioning_active
 
-    if ekf_match(sensor_data, angle):
+    if not absolute_positioning_active and ekf_match(sensor_data):
         # Match sucessfull, update position
         ekf_update(sensor_data)
 
@@ -55,7 +71,7 @@ def ekf_branch( sensor_data, angle ):
     #print "Predicted Position:"
     #print predicted_position
 
-def ekf_match( sensor_data, angle ):
+def ekf_match( sensor_data ):
     """ Matches current predicted position and the sensor position
         information.
         Returns true if the predicted position and sensor position
@@ -64,6 +80,8 @@ def ekf_match( sensor_data, angle ):
 
     global predicted_position
     global predicted_position_var
+    global old_nanoloc_data
+    global predicted_rotation
 
     s = sensor_data
     p = predicted_position
@@ -75,33 +93,42 @@ def ekf_match( sensor_data, angle ):
     print predicted_position_var
     print Qk
 
-    (roll,pitch,yaw) = euler_from_quaternion(predicted_position.orientation)
+    #(roll,pitch,yaw) = euler_from_quaternion(predicted_position.orientation)
 
-    theta = yaw
+    theta = predicted_rotation
 
-    a1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])
-    b1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[1,1])
-    c1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[2,2])
-    a2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
-    b2 = stats.norm.interval(0.9,loc = 0, scale = Qk[1,1])
-    c2 = stats.norm.interval(0.9,loc = 0, scale = Qk[2,2])
+    distance_moved = np.sqrt((old_nanoloc_data.position.x-sensor_data.position.x)**2 + (old_nanoloc_data.position.y- sensor_data.position.y)**2)
+    if distance_moved > 0.01 and old_nanoloc_data:
+    	angle = calcAngle(old_nanoloc_data.position.x, old_nanoloc_data.position.y, sensor_data.position.x, sensor_data.position.y)
+    else:
+   		angle = theta
 
-    print "R1"
-    print R1
-    print "R2"
-    print R2
+    a1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])[1]
+    b1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[1,1])[1]
+    c1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[2,2])[1]
+    a2 = stats.norm.interval(0.9,loc = 0, scale = Rk[0,0])[1]
+    b2 = stats.norm.interval(0.9,loc = 0, scale = Rk[1,1])[1]
+    c2 = stats.norm.interval(0.9,loc = 0, scale = Rk[2,2])[1]
 
-    A = np.array([[1.0/(a1**2),0,0,2.0*p.position.x/a1],
-                  [0,1.0/(b1**2),0,2.0*p.position.y/b1],
-                  [0,0,1.0/(c1**2),2.0*theta/c1],
-                  [2.0*p.position.x/a1,2.0*p.position.y/b1,2.0*theta/c1,-1]])
+    print "Pred pos"
+    print predicted_position
 
-    B = np.array([[1.0/(a2**2),0,0,2.0*s.position.x/a2],
-                  [0,1.0/(b2**2),0,2.0*s.position.y/b2],
-                  [0,0,1.0/(c2**2),2.0*angle/c2],
-                  [2.0*s.position.x/a1,2.0*s.position.y/b1,2.0*angle/c2,-1]])
+    A = np.array([[2.0/(a1**2),0,0,-2.0*p.position.x/a1],
+                  [0,2.0/(b1**2),0,-2.0*p.position.y/b1],
+                  [0,0,2.0/(c1**2),-2.0*theta/c1],
+                  [-2.0*p.position.x/a1,-2.0*p.position.y/b1,-2.0*theta/c1,2*(-1+p.position.x**2+p.position.y**2+theta**2)]])
 
-    w,v = np.linalg.eig(np.linalg.inv(A)*B)
+    B = np.array([[2.0/(a2**2),0,0,-2.0*s.position.x/a2],
+                  [0,2.0/(b2**2),0,-2.0*s.position.y/b2],
+                  [0,0,2.0/(c2**2),-2.0*angle/c2],
+                  [-2.0*s.position.x/a2,-2.0*s.position.y/b2,-2.0*angle/c2,2*(-1+s.position.x**2+s.position.y**2+angle**2)]])
+
+    print A
+    print B
+
+    eig,v = np.linalg.eig(np.linalg.inv(A)*B)
+
+    print eig
 
     """ O criterio de matching baseia-se no paper: http://centerforspace.net/downloads/files/pubs/JGCD.V26.N01.pdf
         Basicamente, se os 2 primeiros eigs forem iguais, os elipsoides tocam-se se forem complexos conjugados, 
@@ -126,6 +153,9 @@ def ekf_update( sensor_data ):
     global current_position_var
     global predicted_position_var
     global predicted_position
+    global predicted_rotation
+
+    global old_nanoloc_data
 
     p = predicted_position.position
     print p
@@ -151,6 +181,23 @@ def ekf_update( sensor_data ):
 
     current_position_var = predicted_position_var - K*S*np.matrix.transpose(K)
 
+    # Update Angle
+    # We only have information about the angle if the pioneer has moved
+    distance_moved = np.sqrt((old_nanoloc_data.position.x-sensor_data.position.x)**2 + (old_nanoloc_data.position.y- sensor_data.position.y)**2)
+    if distance_moved > 0.01 and old_nanoloc_data:
+        # Calculo do angulo apartir de duas iteracoes seguidas
+        angle = calcAngle(old_nanoloc_data.position.x, old_nanoloc_data.position.y, sensor_data.position.x, sensor_data.position.y)
+        print("Angle: %f rad" % angle)
+
+        S = Rk[3,3] + predicted + 3 # random variance
+
+        # Kalman Gain for position
+        K = predicted_position_var[3,3]/S
+        Z = angle
+
+        predicted_rotation     = predicted_rotation + K*(Z - predicted_rotation)
+        predicted_position_var[3,3] = predicted_position_var[3,3] - K**2*S
+
 def ekf_absolute_positioning(sensor_data):
     """ Absolute positioning routine.
         Overwrites current position with the position information
@@ -163,12 +210,6 @@ def ekf_absolute_positioning(sensor_data):
 
     global absolute_positioning_location
 
-    global pos1
-    global pos1_var
-
-    global pos2
-    global pos2_var
-
     global pos1_x
     global pos1_y
 
@@ -178,20 +219,12 @@ def ekf_absolute_positioning(sensor_data):
     # Agent is in first calibration position
     if absolute_positioning_location == 1:
         # First sample
-        if pos1[0][0] == -1:
+        if len(pos1_x) == 0:
         	pos1_x   = np.array([sensor_data.position.x])
         	pos1_y   = np.array([sensor_data.position.y])
 
-        	pos1     = np.array([[sensor_data.position.x],[sensor_data.position.y]])
-        	pos1_var = Rk
       	# Kalman filter to update first calibration position estimate
         else:
-            S = pos1_var + Rk
-            K = pos1_var*np.linalg.inv(S)
-            Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
-
-            pos1 = pos1 + K*(Z - pos1)
-            pos1_var = pos1_var - K*S*np.matrix.transpose(K)
 
             pos1_x = np.append(pos1_x, sensor_data.position.x)
             pos1_y = np.append(pos1_y, sensor_data.position.y)
@@ -199,20 +232,12 @@ def ekf_absolute_positioning(sensor_data):
     # Agent is in first calibration position
     elif absolute_positioning_location == 2:
         # First sample
-        if pos2[0][0] == -1:
-            pos2     = np.array([[sensor_data.position.x],[sensor_data.position.y]])
-            pos2_var = Rk
+        if len(pos2_x) == 0:
             pos2_x   = np.array([sensor_data.position.x])
             pos2_y   = np.array([sensor_data.position.y])
 
         # Kalman filter to update first calibration position estimate
         else:
-            S = pos2_var + Rk
-            K = pos2_var*np.linalg.inv(S)
-            Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
-
-            pos2 = pos2 + K*(Z - pos1)
-            pos2_var = pos2_var - K*S*np.matrix.transpose(K)
 
             pos2_x = np.append(pos2_x, sensor_data.position.x)
             pos2_y = np.append(pos2_y, sensor_data.position.y)
@@ -227,18 +252,13 @@ def ekf_absolute_positioning_routine_1():
     absolute_positioning_active   = True
     absolute_positioning_location = 1
 
-    threading.Timer(10, ekf_absolute_positioning_routine_2).start()
+    threading.Timer(2, ekf_absolute_positioning_routine_2).start()
 
 # Move to calibration location 2
 def ekf_absolute_positioning_routine_2():
     global absolute_positioning_location
-    global pos1
     global pos1_x
     global pos1_y
-
-    print "Calibration Point 1:"
-    print(pos1)
-    print(pos1_x)
 
     print "Moving to location 2"
 
@@ -252,7 +272,7 @@ def ekf_absolute_positioning_routine_2():
 
     pub.publish(t)
 
-    threading.Timer(20, ekf_absolute_positioning_routine_3).start()
+    threading.Timer(10, ekf_absolute_positioning_routine_3).start()
 
 # Arrived at calibration position 2
 def ekf_absolute_positioning_routine_3():
@@ -263,7 +283,6 @@ def ekf_absolute_positioning_routine_3():
     print "Arrived at location 2"
 
     # Send comand to pioneer to stop
-
     pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
 
     t = Twist()
@@ -278,9 +297,7 @@ def ekf_absolute_positioning_routine_3():
 # Move to calibration location 1
 def ekf_absolute_positioning_routine_4():
     global absolute_positioning_location
-    global pos1
-    global pos2
-
+    
     global pos1_x
     global pos1_y
 
@@ -289,11 +306,7 @@ def ekf_absolute_positioning_routine_4():
 
     print "Moving to location 1"
 
-    print "Calibration Point 2:"
-    print(pos2)
-
     # Send comand to pioneer to drive backwards
-
     pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
 
     t = Twist()
@@ -303,7 +316,7 @@ def ekf_absolute_positioning_routine_4():
 
     absolute_positioning_location = 0
 
-    threading.Timer(20, ekf_absolute_positioning_routine_5).start()
+    threading.Timer(10, ekf_absolute_positioning_routine_5).start()
 
 # Arrived at calibration position 1
 def ekf_absolute_positioning_routine_5():
@@ -337,12 +350,16 @@ def ekf_absolute_positioning_routine_5():
 
     absolute_positioning_active   = False
 
-    
     pos1_med_x = np.mean(pos1_x)
     pos1_med_y = np.mean(pos1_y)
 
     pos2_med_x = np.mean(pos2_x)
     pos2_med_y = np.mean(pos2_y)
+
+    pos1_x = []
+    pos1_y = []
+    pos2_x = []
+    pos2_y = []
 
     print("Ponto 1", pos1_med_x, pos1_med_y)
     print("Ponto 2", pos2_med_x, pos2_med_y)
@@ -363,28 +380,37 @@ def ekf_absolute_positioning_routine_5():
     current_position_var = Rk
 
     predicted_position              = current_position
-    predicted_position_var          = np.array([[1000,0],[0,1000]])
+    predicted_position_var          = np.array([[1000,0,0],[0,1000,0],[0,0,1000]])
 
-def ekf_predict( odometry_data, old_odometry_data ):
+def ekf_predict( odometry_data ):
     """ Steps predicted position with new information from the odometry
         node.
     """
 
     global predicted_position_var
     global predicted_position
+    global predicted_rotation
+
+    global old_odometry_data
 
     # Calculates the norm of the ammount moved since the last callback
     delta_d = point_norm(subtract_positions(odometry_data.pose.position, old_odometry_data.pose.position))
 
-    quaternion = [odometry_data.pose.orientation.x,
-    	odometry_data.pose.orientation.y,
-    	odometry_data.pose.orientation.z,
-    	odometry_data.pose.orientation.w]
+    quaternion_new = [odometry_data.pose.orientation.x,
+        odometry_data.pose.orientation.y,
+        odometry_data.pose.orientation.z,
+        odometry_data.pose.orientation.w]
+
+    quaternion_old = [old_odometry_data.pose.orientation.x,
+        old_odometry_data.pose.orientation.y,
+        old_odometry_data.pose.orientation.z,
+        old_odometry_data.pose.orientation.w]
 
     # Gets the yaw (rotation in z) from the quaternion
-    (roll,pitch,yaw) = euler_from_quaternion(quaternion)
+    (roll,pitch,yaw_new) = euler_from_quaternion(quaternion_new)
+    (roll,pitch,yaw_old) = euler_from_quaternion(quaternion_old)
 
-    theta = yaw
+    theta = predicted_rotation
 
     new_pos = Point()
 
@@ -394,19 +420,20 @@ def ekf_predict( odometry_data, old_odometry_data ):
     predicted_position.position = add_positions(predicted_position.position, new_pos)
     predicted_position.orientation = odometry_data.pose.orientation
 
-    predicted_position_var = predicted_position_var + Qk*np.array([[delta_d*math.cos(theta),0],
-    															   [0,delta_d*math.sin(theta)]])
+    predicted_position_var = predicted_position_var + Qk*np.array([[delta_d*math.cos(theta),0,0],
+                                                                   [0,delta_d*math.sin(theta),0],
+                                                                   [0,0,yaw_new - yaw_old]])
 
 def odometry_callback( odometry_msg ):
     """ Routine that gets executed when a message from the odometry
         node is received.
     """
 
-    global Old_odomery_data
+    global old_odometry_data
 
     odometry_data = odometry_msg.pose
-    ekf_predict(odometry_data,Old_odomery_data)
-    Old_odomery_data = odometry_data
+    ekf_predict(odometry_data)
+    old_odometry_data = odometry_data
 
     #rospy.loginfo("Odometry: x:%i, y:%i, z:%i" % (odometry_msg.pose.pose.position.x,
     #                                              odometry_msg.pose.pose.position.y,
@@ -417,8 +444,11 @@ def sensor_callback( sensor_msg ):
         sensor (Nanoloc) is received.
     """
 
-    sensor_data = sensor_msg
-    ekf_branch(sensor_data, angle)
+    global old_nanoloc_data
+
+    sensor_data = sensor_msg.pose.pose
+    ekf_branch(sensor_data)
+    old_nanoloc_data = sensor_data
 
     #rospy.loginfo("Sensor: x:%i, y:%i, z:%i" % (sensor_msg.pose.position.x,
     #                                            sensor_msg.pose.position.y,
@@ -472,15 +502,17 @@ if __name__ == '__main__':
 	global current_position_var
 	global odometry_offset
 	global matching_fails
-	global Old_odomery_data
+	global old_odometry_data
+	global old_nanoloc_data
 	global Qk
 	global Rk
 	global absolute_positioning_active
 	global absolute_positioning_location
-	global pos1
-	global pos1_var
-	global pos2
-	global pos2_var
+	global pos1_x
+	global pos2_x
+
+	global predicted_rotation
+	global predicted_rotation_var
 	
 	# Constants
 	# Number of failed matches before position reset
@@ -489,11 +521,13 @@ if __name__ == '__main__':
 	# State Variables
 	# Predicted State
 	predicted_position     = Pose()
-	predicted_position_var = np.matrix([[0,0],[0,0],[0,0]])
+	predicted_position_var = np.matrix([[1*10**3,0,0],[0,1**10**3,0],[0,0,1**10**3]])
+	predicted_rotation     = 0
+	predicted_rotation_var = 1000
 
 	# Current State
 	current_position     = Pose()
-	current_position_var = np.matrix([[0,0],[0,0],[0,0]])
+	current_position_var = np.matrix([[0,0,0],[0,0,0],[0,0,0]])
 
 	# Internal variables
 	# Odometry corrective offset
@@ -503,25 +537,23 @@ if __name__ == '__main__':
 	absolute_positioning_active = False
 	absolute_positioning_location = 0
 
-	pos1 = np.array([[-1], [-1]])
-	pos1_var = np.matrix([[0,0],[0,0],[0,0]])
-
-	pos2 = np.array([[-1], [-1]])
-	pos2_var = np.matrix([[0,0],[0,0],[0,0]])
-
 	# Last State variables
-	Old_odomery_data = PoseWithCovariance()
+	old_odometry_data = PoseWithCovariance()
+	old_nanoloc_data = Pose()
 
 	# Odometry covariance matrix
-	Qk = np.matrix([[0.000001020833333,0.0,0.0],[0.0,0.000001020833333,0.0],[0.0,0.0,0.10])
+	Qk = np.matrix([[0.000001020833333,0.0,0.0],[0.0,0.000001020833333,0.0],[0.0,0.0,0.10]])
 
 	# Nanoloc covariance matrix
 	Rk = np.matrix([[0.115043563,0.0,0.0],[0.0,0.115043563,0.0],[0.0,0.0,0.10]])
 
+	pos1_x = []
+	pos2_x = []
+
 	rospy.init_node('ekf_position', anonymous=True)
 
 	rospy.Subscriber("/RosAria/pose", Odometry, odometry_callback)
-	rospy.Subscriber("nanoloc"  , Pose, sensor_callback  )
+	rospy.Subscriber("nanoloc"  , Odometry, sensor_callback  )
 
 	pub = rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size = 10)
 
