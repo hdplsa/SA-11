@@ -15,7 +15,7 @@ from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose, Twist
 
 # As constantes passaram para la para baixo
 
-def ekf_branch( sensor_data ):
+def ekf_branch( sensor_data, angle ):
     """ Branches between absolute positioning and update step.
         If match on sensor position and predicted position is
         succesfull the update step is executed.
@@ -30,7 +30,7 @@ def ekf_branch( sensor_data ):
     global current_position_var
     global absolute_positioning_active
 
-    if ekf_match(sensor_data):
+    if ekf_match(sensor_data, angle):
         # Match sucessfull, update position
         ekf_update(sensor_data)
 
@@ -55,7 +55,7 @@ def ekf_branch( sensor_data ):
     #print "Predicted Position:"
     #print predicted_position
 
-def ekf_match( sensor_data ):
+def ekf_match( sensor_data, angle ):
     """ Matches current predicted position and the sensor position
         information.
         Returns true if the predicted position and sensor position
@@ -68,7 +68,6 @@ def ekf_match( sensor_data ):
     s = sensor_data
     p = predicted_position
 
-
     print predicted_position.position.x
     print predicted_position.position.y
     print s.position.x
@@ -76,23 +75,41 @@ def ekf_match( sensor_data ):
     print predicted_position_var
     print Qk
 
-  
-    R1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])
-    R2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
+    (roll,pitch,yaw) = euler_from_quaternion(predicted_position.orientation)
 
-    # O criterio de matching verifica-se caso as circunferencias que definem o 0.9
-    # de probabilidade comulativa se tocarem.
+    theta = yaw
+
+    a1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])
+    b1 = stats.norm.interval(0.99, loc = 0, scale = predicted_position_var[1,1])
+    c1 = stats.norm.interval(0.99, loc = 0, scale = predicted_position_var[2,2])
+    a2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
+    b2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
+    c2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
 
     print "R1"
     print R1
     print "R2"
     print R2
 
+    A = np.array([[1.0/(a1**2),0,0,2.0*p.position.x/a1],
+                  [0,1.0/(b1**2),0,2.0*p.position.y/b1],
+                  [0,0,1.0/(c1**2),2.0*theta/c1],
+                  [2.0*p.position.x/a1,2.0*p.position.y/b1,2.0*theta/c1,-1]])
 
-    #print "Predicted: [%f,%f]; Nanoloc:[%f,%f]" %(p.position.x,p.position.y,s.position.x,s.position.y)
-    #print "Rpredicted: %f; Rnanoloc: %f" %(R1[1],R2[1])
-    if math.sqrt((s.position.x-p.position.x)**2 + (s.position.y-p.position.y)**2) < R1[1] + R2[1]:
-        print "MATCH"
+    B = np.array([[1.0/(a2**2),0,0,2.0*s.position.x/a2],
+                  [0,1.0/(b2**2),0,2.0*s.position.y/b2],
+                  [0,0,1.0/(c2**2),2.0*angle/c2],
+                  [2.0*s.position.x/a1,2.0*s.position.y/b1,2.0*angle/c2,-1]])
+
+    w,v = np.linalg.eig(np.linalg.inv(A)*B)
+
+    """ O criterio de matching baseia-se no paper: http://centerforspace.net/downloads/files/pubs/JGCD.V26.N01.pdf
+        Basicamente, se os 2 primeiros eigs forem iguais, os elipsoides tocam-se se forem complexos conjugados, 
+        eles penetram-se. """
+
+    if eig[1] == eig[2]:
+        return True
+    elif np.conj(eig[1]) == eig[2]:
         return True
     else:
         return False
@@ -401,7 +418,7 @@ def sensor_callback( sensor_msg ):
     """
 
     sensor_data = sensor_msg
-    ekf_branch(sensor_data)
+    ekf_branch(sensor_data, angle)
 
     #rospy.loginfo("Sensor: x:%i, y:%i, z:%i" % (sensor_msg.pose.position.x,
     #                                            sensor_msg.pose.position.y,
