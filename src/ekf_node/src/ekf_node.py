@@ -127,6 +127,13 @@ def ekf_match( sensor_data ):
     print A
     print B
 
+    # Calcula se o elipsoide do nanoloc esta dentro do elipsoide da predicted position
+    if (s.position.x/a1)**2 + (s.position.y/b1)**2 + (angle/c1)**2 < 1:
+        return True
+    # Calcula se o elipsoide da odometria esta dentro do elipsoide do nanoloc
+    if (p.position.x/a2)**2 + (p.position.y/b2)**2 + (theta/c2)**2 < 1:
+        return True
+
     eig,v = np.linalg.eig(np.linalg.inv(A)*B)
 
     print eig
