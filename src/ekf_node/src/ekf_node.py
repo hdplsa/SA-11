@@ -80,11 +80,11 @@ def ekf_match( sensor_data, angle ):
     theta = yaw
 
     a1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])
-    b1 = stats.norm.interval(0.99, loc = 0, scale = predicted_position_var[1,1])
-    c1 = stats.norm.interval(0.99, loc = 0, scale = predicted_position_var[2,2])
+    b1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[1,1])
+    c1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[2,2])
     a2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
-    b2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
-    c2 = stats.norm.interval(0.9,loc = 0, scale = Qk[0,0])
+    b2 = stats.norm.interval(0.9,loc = 0, scale = Qk[1,1])
+    c2 = stats.norm.interval(0.9,loc = 0, scale = Qk[2,2])
 
     print "R1"
     print R1
@@ -489,11 +489,11 @@ if __name__ == '__main__':
 	# State Variables
 	# Predicted State
 	predicted_position     = Pose()
-	predicted_position_var = np.matrix([[0,0],[0,0]])
+	predicted_position_var = np.matrix([[0,0],[0,0],[0,0]])
 
 	# Current State
 	current_position     = Pose()
-	current_position_var = np.matrix([[0,0],[0,0]])
+	current_position_var = np.matrix([[0,0],[0,0],[0,0]])
 
 	# Internal variables
 	# Odometry corrective offset
@@ -504,19 +504,19 @@ if __name__ == '__main__':
 	absolute_positioning_location = 0
 
 	pos1 = np.array([[-1], [-1]])
-	pos1_var = np.matrix([[0,0],[0,0]])
+	pos1_var = np.matrix([[0,0],[0,0],[0,0]])
 
 	pos2 = np.array([[-1], [-1]])
-	pos2_var = np.matrix([[0,0],[0,0]])
+	pos2_var = np.matrix([[0,0],[0,0],[0,0]])
 
 	# Last State variables
 	Old_odomery_data = PoseWithCovariance()
 
 	# Odometry covariance matrix
-	Qk = np.matrix([[0.000001020833333,0.0],[0.0,0.000001020833333]])
+	Qk = np.matrix([[0.000001020833333,0.0,0.0],[0.0,0.000001020833333,0.0],[0.0,0.0,0.10])
 
 	# Nanoloc covariance matrix
-	Rk = np.matrix([[0.115043563,0.0],[0.0,0.115043563]])
+	Rk = np.matrix([[0.115043563,0.0,0.0],[0.0,0.115043563,0.0],[0.0,0.0,0.10]])
 
 	rospy.init_node('ekf_position', anonymous=True)
 
