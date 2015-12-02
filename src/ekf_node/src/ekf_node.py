@@ -82,14 +82,15 @@ def ekf_match( sensor_data ):
     global predicted_position_var
     global old_nanoloc_data
     global predicted_rotation
+    global Rk
 
-    s = sensor_data
-    p = predicted_position
+    s = sensor_data.position
+    p = predicted_position.position
 
-    print "p.x: %f" %predicted_position.position.x
-    print "p.y: %f" %predicted_position.position.y
-    print "s.x: %f" %s.position.x
-    print "s.y: %f" %s.position.y
+    print "p.x: %f" %p.x
+    print "p.y: %f" %p.y
+    print "s.x: %f" %s.x
+    print "s.y: %f" %s.y
     print predicted_position_var
     print Rk
 
@@ -97,57 +98,18 @@ def ekf_match( sensor_data ):
 
     theta = predicted_rotation
 
-    print "theta: %f" %(theta)
+    v = subtract_positions(s,p)
+    v = np.array([[v.x],[v.y]])
 
-    distance_moved = np.sqrt((old_nanoloc_data.position.x-sensor_data.position.x)**2 + (old_nanoloc_data.position.y- sensor_data.position.y)**2)
-    if distance_moved > 0.01 and old_nanoloc_data:
-    	angle = calcAngle(old_nanoloc_data.position.x, old_nanoloc_data.position.y, sensor_data.position.x, sensor_data.position.y)
-    else:
-   		angle = theta
+    S = predicted_position_var + Rk
 
-    print "angle: %f" %angle
+    gamma = 1
 
-    a1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[0,0])[1]
-    b1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[1,1])[1]
-    c1 = stats.norm.interval(0.99,loc = 0, scale = predicted_position_var[2,2])[1]
-    a2 = stats.norm.interval(0.9,loc = 0, scale = Rk[0,0])[1]
-    b2 = stats.norm.interval(0.9,loc = 0, scale = Rk[1,1])[1]
-    c2 = stats.norm.interval(0.9,loc = 0, scale = Rk[2,2])[1]
-
-    A = np.array([[2.0/(a1**2),0,0,-2.0*p.position.x/a1],
-                  [0,2.0/(b1**2),0,-2.0*p.position.y/b1],
-                  [0,0,2.0/(c1**2),-2.0*theta/c1],
-                  [-2.0*p.position.x/a1,-2.0*p.position.y/b1,-2.0*theta/c1,2*(-1+p.position.x**2+p.position.y**2+theta**2)]])
-
-    B = np.array([[2.0/(a2**2),0,0,-2.0*s.position.x/a2],
-                  [0,2.0/(b2**2),0,-2.0*s.position.y/b2],
-                  [0,0,2.0/(c2**2),-2.0*angle/c2],
-                  [-2.0*s.position.x/a2,-2.0*s.position.y/b2,-2.0*angle/c2,2*(-1+s.position.x**2+s.position.y**2+angle**2)]])
-
-    print A
-    print B
-
-    # Calcula se o elipsoide do nanoloc esta dentro do elipsoide da predicted position
-    if (s.position.x/a1)**2 + (s.position.y/b1)**2 + (angle/c1)**2 < 1:
-        return True
-    # Calcula se o elipsoide da odometria esta dentro do elipsoide do nanoloc
-    if (p.position.x/a2)**2 + (p.position.y/b2)**2 + (theta/c2)**2 < 1:
-        return True
-
-    eig,v = np.linalg.eig(np.linalg.inv(A)*B)
-
-    print eig
-
-    """ O criterio de matching baseia-se no paper: http://centerforspace.net/downloads/files/pubs/JGCD.V26.N01.pdf
-        Basicamente, se os 2 primeiros eigs forem iguais, os elipsoides tocam-se se forem complexos conjugados, 
-        eles penetram-se. """
-
-    if eig[1] == eig[2]:
-        return True
-    elif np.conj(eig[1]) == eig[2]:
+    if np.matrix.transpose(v)*S*v < gamma:
         return True
     else:
         return False
+
 
 def ekf_update( sensor_data ):
     """ Executes the update step on the current position, fusing the
@@ -168,10 +130,10 @@ def ekf_update( sensor_data ):
     p = predicted_position.position
     print p
 
-    S = predicted_position_var[0:2,0:2] + Rk[0:2,0:2] # Nos slides isto chama-se S
+    S = predicted_position_var + Rk # Nos slides isto chama-se S
 
     # Kalman Gain
-    K = predicted_position_var[0:2,0:2]*np.linalg.inv(S)
+    K = predicted_position_var*np.linalg.inv(S)
 
     Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
 
@@ -187,24 +149,7 @@ def ekf_update( sensor_data ):
 
     current_position.position = point
 
-    current_position_var[0:2,0:2] = predicted_position_var[0:2,0:2] - K*S*np.matrix.transpose(K)
-
-    # Update Angle
-    # We only have information about the angle if the pioneer has moved
-    distance_moved = np.sqrt((old_nanoloc_data.position.x-sensor_data.position.x)**2 + (old_nanoloc_data.position.y- sensor_data.position.y)**2)
-    if distance_moved > 0.01 and old_nanoloc_data:
-        # Calculo do angulo apartir de duas iteracoes seguidas
-        angle = calcAngle(old_nanoloc_data.position.x, old_nanoloc_data.position.y, sensor_data.position.x, sensor_data.position.y)
-        print("Angle: %f rad" % angle)
-
-        S = predicted_position_var[2,2] + Rk[2,2] + 3 # random variance
-
-        # Kalman Gain for position
-        K = predicted_position_var[2,2]/S
-        Z = angle
-
-        predicted_rotation     = predicted_rotation + K*(Z - predicted_rotation)
-        predicted_position_var[2,2] = predicted_position_var[2,2] - K**2*S
+    current_position_var = predicted_position_var - K*S*np.matrix.transpose(K)
 
 def ekf_absolute_positioning(sensor_data):
     """ Absolute positioning routine.
@@ -389,7 +334,7 @@ def ekf_absolute_positioning_routine_5():
     current_position_var = Rk
 
     predicted_position              = current_position
-    predicted_position_var          = np.array([[10,0,0],[0,10,0],[0,0,10]])
+    predicted_position_var          = np.array([[10,0],[0,10]])
 
     predicted_rotation = teta
 
@@ -421,7 +366,7 @@ def ekf_predict( odometry_data ):
     (roll,pitch,yaw_new) = euler_from_quaternion(quaternion_new)
     (roll,pitch,yaw_old) = euler_from_quaternion(quaternion_old)
 
-    theta = predicted_rotation
+    theta = predicted_rotation + (yaw_new - yaw_old)  # Acho que faltava a soma do angulo
 
     new_pos = Point()
 
@@ -431,9 +376,8 @@ def ekf_predict( odometry_data ):
     predicted_position.position = add_positions(predicted_position.position, new_pos)
     predicted_position.orientation = odometry_data.pose.orientation
 
-    predicted_position_var = predicted_position_var + Qk*np.array([[delta_d*math.cos(theta),0,0],
-                                                                   [0,delta_d*math.sin(theta),0],
-                                                                   [0,0,yaw_new - yaw_old]])
+    predicted_position_var = predicted_position_var + Qk*np.array([[delta_d*math.cos(theta),0],
+                                                                   [0,delta_d*math.sin(theta)]])
 
 def odometry_callback( odometry_msg ):
     """ Routine that gets executed when a message from the odometry
@@ -477,14 +421,15 @@ def publish_position():
             }
     """
 
-    pub  = rospy.Publisher('ekf_position', PoseWithCovariance, queue_size=10)
+    pub  = rospy.Publisher('ekf_position', Odometry, queue_size=10)
     rate = rospy.Rate(1) # 1hz
 
     while not rospy.is_shutdown():
-        msg = PoseWithCovariance()
+        msg = Odometry()
 
-        msg.pose.position = current_position
-        msg.covariance    = current_position_var
+        msg.pose.pose.position = current_position
+        msg.pose.covariance    = current_position_var
+        msg.header.stamp = rospy.get_rostime();
 
         pub.publish(msg)
         rate.sleep()
@@ -532,13 +477,13 @@ if __name__ == '__main__':
 	# State Variables
 	# Predicted State
 	predicted_position     = Pose()
-	predicted_position_var = np.matrix([[1*10**3,0,0],[0,1**10**3,0],[0,0,1**10**3]])
+	predicted_position_var = np.matrix([[1*10**3,0],[0,1**10**3]])
 	predicted_rotation     = 0
 	predicted_rotation_var = 1000
 
 	# Current State
 	current_position     = Pose()
-	current_position_var = np.matrix([[0,0,0],[0,0,0],[0,0,0]])
+	current_position_var = np.matrix([[0,0],[0,0]])
 
 	# Internal variables
 	# Odometry corrective offset
@@ -553,10 +498,10 @@ if __name__ == '__main__':
 	old_nanoloc_data = Pose()
 
 	# Odometry covariance matrix
-	Qk = np.matrix([[0.000001020833333,0.0,0.0],[0.0,0.000001020833333,0.0],[0.0,0.0,0.10]])
+	Qk = np.matrix([[0.000001020833333,0.0],[0.0,0.000001020833333]])
 
 	# Nanoloc covariance matrix
-	Rk = np.matrix([[0.115043563,0.0,0.0],[0.0,0.115043563,0.0],[0.0,0.0,0.10]])
+	Rk = np.matrix([[0.115043563,0.0],[0.0,0.115043563]])
 
 	pos1_x = []
 	pos2_x = []
