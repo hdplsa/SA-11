@@ -98,15 +98,42 @@ def ekf_match( sensor_data ):
 
     theta = predicted_rotation
 
+    # Metodo dos slides
+
     v = subtract_positions(s,p)
     v = np.array([[v.x],[v.y]])
 
     S = predicted_position_var + Rk
 
-    gamma = 1
+    gamma = 0.5
 
     if np.matrix.transpose(v)*S*v < gamma:
         return True
+    else:
+        return False
+
+    # Meu metodo
+
+    x1 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(predicted_position_var[0,0]))[1]
+    x2 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(predicted_position_var[1,1]))[1]
+    y1 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(Rk[0,0]))[1]
+    y2 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(Rk[1,1]))[1]
+
+    c1 = p.x - x1/2.0
+    c2 = p.x + x1/2.0
+    c3 = s.x - x2/2.0
+    c4 = s.x + x2/2.0
+
+    d1 = p.y - y1/2.0
+    d2 = p.y + y1/2.0
+    d3 = s.y - y2/2.0
+    d4 = s.y + y2/2.0
+
+    if  (c1 <= c3 and c3 <= c2) or (c1 <= c4 and c4 <= c2):
+        if (d1 <= d3 and d3 <= d2) or (d1 <= d4 and d4 <= d2):
+            return True
+        else: 
+            return False
     else:
         return False
 
