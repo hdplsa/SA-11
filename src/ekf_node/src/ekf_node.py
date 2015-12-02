@@ -168,10 +168,10 @@ def ekf_update( sensor_data ):
     p = predicted_position.position
     print p
 
-    S = predicted_position_var + Rk # Nos slides isto chama-se S
+    S = predicted_position_var[0:2,0:2] + Rk[0:2,0:2] # Nos slides isto chama-se S
 
     # Kalman Gain
-    K = predicted_position_var*np.linalg.inv(S)
+    K = predicted_position_var[0:2,0:2]*np.linalg.inv(S)
 
     Z = np.array([[sensor_data.position.x],[sensor_data.position.y]])
 
@@ -187,7 +187,7 @@ def ekf_update( sensor_data ):
 
     current_position.position = point
 
-    current_position_var = predicted_position_var - K*S*np.matrix.transpose(K)
+    current_position_var[0:2,0:2] = predicted_position_var[0:2,0:2] - K*S*np.matrix.transpose(K)
 
     # Update Angle
     # We only have information about the angle if the pioneer has moved
@@ -197,14 +197,14 @@ def ekf_update( sensor_data ):
         angle = calcAngle(old_nanoloc_data.position.x, old_nanoloc_data.position.y, sensor_data.position.x, sensor_data.position.y)
         print("Angle: %f rad" % angle)
 
-        S = Rk[3,3] + predicted + 3 # random variance
+        S = predicted_position_var[2,2] + Rk[2,2] + 3 # random variance
 
         # Kalman Gain for position
-        K = predicted_position_var[3,3]/S
+        K = predicted_position_var[2,2]/S
         Z = angle
 
         predicted_rotation     = predicted_rotation + K*(Z - predicted_rotation)
-        predicted_position_var[3,3] = predicted_position_var[3,3] - K**2*S
+        predicted_position_var[2,2] = predicted_position_var[2,2] - K**2*S
 
 def ekf_absolute_positioning(sensor_data):
     """ Absolute positioning routine.
@@ -389,7 +389,7 @@ def ekf_absolute_positioning_routine_5():
     current_position_var = Rk
 
     predicted_position              = current_position
-    predicted_position_var          = np.array([[1000,0,0],[0,1000,0],[0,0,1000]])
+    predicted_position_var          = np.array([[10,0,0],[0,10,0],[0,0,10]])
 
     predicted_rotation = teta
 
