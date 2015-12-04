@@ -114,10 +114,10 @@ def ekf_match( sensor_data ):
 
     # Meu metodo
 
-    x1 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(predicted_position_var[0,0]))[1]
-    x2 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(predicted_position_var[1,1]))[1]
-    y1 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(Rk[0,0]))[1]
-    y2 = stats.norm.interval(0.9, loc=0, scale=math.sqrt(Rk[1,1]))[1]
+    x1 = stats.norm.interval(0.99, loc=0, scale=math.sqrt(predicted_position_var[0,0]))[1]
+    y1 = stats.norm.interval(0.99, loc=0, scale=math.sqrt(predicted_position_var[1,1]))[1]
+    x2 = stats.norm.interval(0.99, loc=0, scale=math.sqrt(Rk[0,0]))[1]
+    y2 = stats.norm.interval(0.99, loc=0, scale=math.sqrt(Rk[1,1]))[1]
 
     c1 = p.x - x1/2.0
     c2 = p.x + x1/2.0
@@ -128,6 +128,16 @@ def ekf_match( sensor_data ):
     d2 = p.y + y1/2.0
     d3 = s.y - y2/2.0
     d4 = s.y + y2/2.0
+
+#    print "c1: %f" % c1
+#    print "c2: %f" % c2
+#    print "c3: %f" % c3
+#    print "c4: %f" % c4
+#
+#    print "d1: %f" % d1
+#    print "d2: %f" % d2
+#    print "d3: %f" % d3
+#    print "d4: %f" % d4
 
     if  (c1 <= c3 and c3 <= c2) or (c1 <= c4 and c4 <= c2):
         if (d1 <= d3 and d3 <= d2) or (d1 <= d4 and d4 <= d2):
@@ -394,6 +404,7 @@ def ekf_predict( odometry_data ):
     (roll,pitch,yaw_old) = euler_from_quaternion(quaternion_old)
 
     theta = predicted_rotation + (yaw_new - yaw_old)  # Acho que faltava a soma do angulo
+    predicted_rotation = theta
 
     new_pos = Point()
 
@@ -448,14 +459,19 @@ def publish_position():
             }
     """
 
+    global current_position_var
+    global current_position
+
     pub  = rospy.Publisher('ekf_position', Odometry, queue_size=10)
     rate = rospy.Rate(1) # 1hz
 
     while not rospy.is_shutdown():
         msg = Odometry()
 
-        msg.pose.pose.position = current_position
-        msg.pose.covariance    = current_position_var
+        msg.pose.pose = current_position
+#        aux = [[0 for i in range(0,6)] for j in range(0,6)] 
+        msg.pose.covariance[0]    = float(current_position_var[0,0])
+        msg.pose.covariance[6]    = float(current_position_var[1,1])
         msg.header.stamp = rospy.get_rostime();
 
         pub.publish(msg)
@@ -499,13 +515,13 @@ if __name__ == '__main__':
 	
 	# Constants
 	# Number of failed matches before position reset
-	MATCH_THRESHOLD = 10
+	MATCH_THRESHOLD = 20
 
 	# State Variables
 	# Predicted State
 	predicted_position     = Pose()
-	predicted_position_var = np.matrix([[1*10**3,0],[0,1**10**3]])
-	predicted_rotation     = 0
+	predicted_position_var = np.matrix([[1*10**3,0],[0,1*10**3]])
+	predicted_rotation     = math.pi
 	predicted_rotation_var = 1000
 
 	# Current State
@@ -528,7 +544,7 @@ if __name__ == '__main__':
 	Qk = np.matrix([[0.000001020833333,0.0],[0.0,0.000001020833333]])
 
 	# Nanoloc covariance matrix
-	Rk = np.matrix([[0.115043563,0.0],[0.0,0.115043563]])
+	Rk = np.matrix([[0.3998962268,0.0],[0.0,0.3998962268]])
 
 	pos1_x = []
 	pos2_x = []
