@@ -8,6 +8,7 @@ import math
 import matplotlib.pyplot as plt
 import scipy.io
 import time
+import datetime
 # ROS specific imports
 import tf
 from std_msgs.msg import String
@@ -46,8 +47,6 @@ def main():
 	while not rospy.is_shutdown():
 		time.sleep(0.01);
 		plt.draw();
-
-
 
 def odom_callback( msg ):
 

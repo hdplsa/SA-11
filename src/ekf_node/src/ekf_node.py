@@ -87,16 +87,18 @@ def ekf_match( sensor_data ):
     s = sensor_data.position
     p = predicted_position.position
 
+    theta = predicted_rotation
+
+
     print "p.x: %f" %p.x
     print "p.y: %f" %p.y
     print "s.x: %f" %s.x
     print "s.y: %f" %s.y
+    print "theta: %f" %theta
     print predicted_position_var
     print Rk
 
     #(roll,pitch,yaw) = euler_from_quaternion(predicted_position.orientation)
-
-    theta = predicted_rotation
 
     # Metodo dos slides
 
@@ -262,7 +264,7 @@ def ekf_absolute_positioning_routine_2():
 
     pub.publish(t)
 
-    threading.Timer(10, ekf_absolute_positioning_routine_3).start()
+    threading.Timer(20, ekf_absolute_positioning_routine_3).start()
 
 # Arrived at calibration position 2
 def ekf_absolute_positioning_routine_3():
@@ -306,7 +308,7 @@ def ekf_absolute_positioning_routine_4():
 
     absolute_positioning_location = 0
 
-    threading.Timer(10, ekf_absolute_positioning_routine_5).start()
+    threading.Timer(20, ekf_absolute_positioning_routine_5).start()
 
 # Arrived at calibration position 1
 def ekf_absolute_positioning_routine_5():
