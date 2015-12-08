@@ -10,6 +10,7 @@ import time, threading
 import tf
 from std_msgs.msg import String
 from tf.transformations import euler_from_quaternion
+from tf.transformations import quaternion_from_euler
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion, PoseWithCovariance, Pose, Twist
 from nav_msgs.msg import Odometry
@@ -187,6 +188,7 @@ def ekf_update( sensor_data ):
     point.x = float(aux_current[0]); point.y = float(aux_current[1]); p.z = 0;
 
     current_position.position = point
+    current_position.orientation = quaternion_from_euler(0,0,predicted_rotation)
 
     current_position_var = predicted_position_var - K*S*np.matrix.transpose(K)
 

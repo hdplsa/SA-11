@@ -54,10 +54,11 @@ def odom_callback( msg ):
 	global plt
 
 	pos = msg.pose.pose.position
+	quat = msg.pose.pose.orientation
 
 	plt.scatter(float(pos.x), float(pos.y),c="b",alpha=0.5)
 
-	odom.append({'pos':[pos.x,pos.y],'time':rospy.get_rostime().secs})
+	odom.append({'pos':[pos.x,pos.y],'quat':quat,'time':rospy.get_rostime().secs})
 
 
 def ekf_callback( msg ):
@@ -66,10 +67,11 @@ def ekf_callback( msg ):
 	global plt
 
 	pos = msg.pose.pose.position
+	quat = msg.pose.pose.orientation
 
 	plt.scatter(float(pos.x), float(pos.y),c="g",alpha=0.5)
 
-	ekf.append({'pos':[pos.x,pos.y],'time':float(rospy.get_rostime().secs),'var':msg.pose.covariance})
+	ekf.append({'pos':[pos.x,pos.y],'quat':quat,'time':float(rospy.get_rostime().secs),'var':msg.pose.covariance})
 
 
 def nanoloc_callback( msg ):
